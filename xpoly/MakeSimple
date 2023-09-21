@@ -1,0 +1,41 @@
+OBJDIR = ../objs
+BINDIR = ../bin
+#
+#  Compiler flags for linux, gfortran
+#
+FOR = gfortran
+#FFLAGS = -O 
+#
+#OBJS = $(OBJDIR)/grafdat.o $(OBJDIR)/lppak.o
+#
+all:	$(BINDIR)/basinv $(BINDIR)/circles $(BINDIR)/corotate \
+        $(BINDIR)/mdcomp $(BINDIR)/polyfix $(BINDIR)/xpoly \
+        $(BINDIR)/selvect
+#
+$(BINDIR)/basinv: basinv.f
+	$(FOR) ${FFLAGS} basinv.f -o $(BINDIR)/basinv
+#
+$(BINDIR)/circles: circles.f
+	$(FOR) ${FFLAGS} circles.f -o $(BINDIR)/circles
+#
+$(BINDIR)/corotate: corotate.f dsyev2-F-1.0/dsyev2.f
+	$(FOR) ${FFLAGS} corotate.f dsyev2-F-1.0/dsyev2.f -o $(BINDIR)/corotate
+#
+$(BINDIR)/mdcomp: mdcomp.f
+	$(FOR) ${FFLAGS} mdcomp.f -o $(BINDIR)/mdcomp
+#
+$(BINDIR)/polyfix: polyfix.f
+	$(FOR) ${FFLAGS} polyfix.f -o $(BINDIR)/polyfix
+#
+$(BINDIR)/selvect: selvect.f
+	$(FOR) ${FFLAGS} selvect.f -o $(BINDIR)/selvect
+#
+$(BINDIR)/xpoly:  xpoly.f
+	$(FOR) ${FFLAGS} xpoly.f -o $(BINDIR)/xpoly
+#
+#$(OBJDIR)/grafdat.o: grafdat.f
+#	$(FOR) -c $(FFLAGS) grafdat.f -o $(OBJDIR)/grafdat.o
+
+#$(OBJDIR)/lppak.o: $(SSRCDIR)/lppak.f
+#	$(FOR) -c $(FFLAGS) $(SSRCDIR)/lppak.f -o $(OBJDIR)/lppak.o
+

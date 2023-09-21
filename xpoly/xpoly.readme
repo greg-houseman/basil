@@ -1,0 +1,164 @@
+xpoly is a fortran program written to simplify the task of building
+and modifying poly files for use in basil.  It is designed to take
+sets of (x,y) coordinate pairs, one pair per line to any number of
+lines in 2 standard files called 'boundary' and 'internal'.
+The 'boundary' file is required, the 'internal' file is 
+optional.  The output poly file is written to 'x.poly'.  Using
+xpoly simplifies the task of editing a poly file after insertion 
+or deletion of individual points.  If you add or delete a point 
+from any of the input files, all the connections that define line 
+segments will be rebuilt when xpoly is again executed.
+
+xpoly can handle a restricted range of problem geometries that may
+be extended in the future.  However it does not check for all of the
+unpredictable things that might be done or that you might want to be 
+done with a set of input points, (e.g., boundaries intersecting 
+themselves), so it is best to build the problem specification in 
+simple stages, checking at each stage that the resulting poly file 
+is sensibly constructed (using the 'showme' program). 
+
+If you define some complicated or odd topology, xpoly may produce a
+a poly file without apparent problem, but the triangle program may 
+or may not be able to work with the resulting poly file.
+
+Here are a few simple examples to show how it works:
+
+1.  simple external boundary comprising a single closed polygon
+'boundary' contains 5 sets of coordinates:
+# 1   (rectangular external boundary)
+  0 0
+  10. 0
+  10. 1
+  0 1
+  0 0
+#
+If you run xpoly, x.poly will contain
+    4 2 0 0
+   1  0.0000      0.0000
+   2  10.000      0.0000
+   3  10.000      1.0000
+   4  0.0000      1.0000
+    4 0
+   1   1   2
+   2   2   3
+   3   3   4
+   4   4   1
+ 0
+ 0
+But you can include as many points as you like to create an
+irregular closed polygon.  Note that the last point in the boundary
+file is the same as the first point so that the polygon is closed.
+Note also that the points are connected in order of listing, so 
+they should be listed in a sequence that you would use to draw 
+them without lifting the pen (clockwise or anticlockwise should work).
+The lines that start with # are used to separate segments of the boundary
+that have distinct labels (an integer that follows the # on the same
+line.  In this case, 1 is the label for the entire external boundary 
+and the words that follow are an optional comment.
+Using different labels for different segments of the boundary, basil 
+can set set boundary conditions specific to a given part of the boundary.
+Successive segments in 'boundary' should be joined by repeating last
+point of previous segment at beginning of new segment.
+
+2.  simple external boundary + internal closed region with distinct
+properties: if you now create a file called 'internal' that defines 
+another polygon entirely within the polygon defined in 'boundary'
+e.g., with 'boundary' as before, 'internal' contains 5 lines:
+# 
+  1.0 0.2
+  5 0.2
+  7 0.8
+  3 0.8
+  1.0 0.2
+#
+If you now run xpoly, your output poly file will define a special region
+within the external boundary.  The output file x.poly for this example will
+then look like:
+    8 2 0 0
+   1  0.0000      0.0000    
+   2  10.000      0.0000    
+   3  10.000      1.0000    
+   4  0.0000      1.0000    
+   5  1.0000     0.20000    
+   6  5.0000     0.20000    
+   7  7.0000     0.80000    
+   8  3.0000     0.80000    
+    8 0
+   1   1   2
+   2   2   3
+   3   3   4
+   4   4   1
+   5   5   6
+   6   6   7
+   7   7   8
+   8   8   5
+ 0
+ 0
+A similar set of rules should be assumed for internal and external
+boundaries - any number of points, listed in a sensible sequence. To
+close a polygon just repeat the first point, but internal structures 
+need not be closed.
+
+Multiple disconnected internal structures are also permissible.
+Just separate each structure in 'internal' with a header line, label
+and optional comment.
+
+Structures can be connected to previously defined structures as long as 
+first and last points of the structure have been already used. e.g.,
+Here is the boundary file
+# 1
+  0 0
+  1 0
+  10. 0
+  10 0.8
+  10. 1
+  0 1
+  0 .8
+  0 .5
+#
+And additional points are included in the original rectangle to allow
+connecting lines to be drawn to and from those points).  The connecting
+lines are defined in 'internal' by including:
+# 2
+  1 0 
+  1.2 0.4
+  0 0.5
+# 3
+  0 0.8
+  10 0.8
+#
+This will add two internal connecting linesR with the first 3 points
+creating a quadrilateral region in the lower left corner of the external
+boundary, and the latter two points creating a horizontal line right across
+the rectangle at height 0.8.  Here is the resulting x.poly.
+    9 2 0 0
+   1  0.0000      0.0000    
+   2  1.0000      0.0000    
+   3  10.000      0.0000    
+   4  10.000     0.80000    
+   5  10.000      1.0000    
+   6  0.0000      1.0000    
+   7  0.0000     0.80000    
+   8  0.0000     0.50000    
+   9  1.2000     0.40000    
+   11 0
+   1   1   2
+   2   2   3
+   3   3   4
+   4   4   5
+   5   5   6
+   6   6   7
+   7   7   8
+   8   8   1
+   9   2   9
+  10   9   8
+  11   7   4
+ 0
+ 0
+
+The file x.poly created by xpoly can undergo one further modification
+achieved by the routine polyfix.  This routine simply adds a set of declared
+node points to a poly file, without specifying hows these nodes are connected
+to the finite element mesh.  The points are read from a file specified in
+the command line (or default: selvect.out); the input poly file is assumed 
+to be in x.poly, and the modified poly file is placed in new.poly.

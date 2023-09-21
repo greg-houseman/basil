@@ -1,0 +1,130 @@
+#ifndef XCOMM
+#define XCOMM #
+#endif
+
+#define UseInstalledMotif 1
+#define ImportMotif 0
+#define UseInstalledMotif 1
+/*
+#ifndef MotifDefines
+#ifdef SGIArchitecture
+#define XpmTop /usr
+#endif
+#ifdef SparcArchitecture
+XMLIB = -lXm
+#else
+#include <Motif.tmpl>
+#endif
+#endif
+*/
+#ifdef UseInstalledMotif
+#include <Motif.tmpl>
+#endif
+
+#include <Imake.rules>
+#ifdef UseInstalledMotif
+#include <Motif.rules>
+#endif
+
+SRCDIR = .
+OBJDIR = .
+BINDIR = $(TOP)/bin
+MANDIR = $(TOP)/manl
+DOCSDIR = $(TOP)/docs
+
+CSRCS=  $(SRCDIR)/sybmain.c $(SRCDIR)/plot.c $(SRCDIR)/xpak.c\
+        $(SRCDIR)/locate.c $(SRCDIR)/uservals.c $(SRCDIR)/help.c\
+        $(SRCDIR)/sybfile.c $(SRCDIR)/arrays.c $(SRCDIR)/menus.c\
+        $(SRCDIR)/pref77.c $(SRCDIR)/log.c $(SRCDIR)/parseopts.c\
+        $(SRCDIR)/options.c $(SRCDIR)/scale.c\
+        $(SRCDIR)/elle.c $(SRCDIR)/ellemenu.c $(SRCDIR)/page.c
+FSRCS=  $(SRCDIR)/plmesh.f $(SRCDIR)/ntrplt.f $(SRCDIR)/arrow.f\
+        $(SRCDIR)/strain.f $(SRCDIR)/stmesh.f $(SRCDIR)/dncom.f\
+        $(SRCDIR)/c3code.f $(SRCDIR)/cntr.f $(SRCDIR)/topogs.f\
+        $(SRCDIR)/deform.f $(SRCDIR)/profil.f $(SRCDIR)/lppak.f\
+        $(SRCDIR)/gravcp.f
+SRCS=   $(CSRCS) $(FSRCS)
+
+OBJSCMN=  $(OBJDIR)/sybfile.o $(OBJDIR)/parseopts.o $(OBJDIR)/scale.o\
+          $(OBJDIR)/arrays.o\
+          $(OBJDIR)/plmesh.o $(OBJDIR)/ntrplt.o $(OBJDIR)/arrow.o\
+          $(OBJDIR)/stmesh.o $(OBJDIR)/dncom.o\
+          $(OBJDIR)/strain.o $(OBJDIR)/cntr.o $(OBJDIR)/topogs.o\
+          $(OBJDIR)/deform.o $(OBJDIR)/profil.o $(OBJDIR)/c3code.o\
+          $(OBJDIR)/gravcp.o
+XOBJS=  $(OBJDIR)/plot.o $(OBJDIR)/xpak.o $(OBJDIR)/locate.o\
+        $(OBJDIR)/help.o $(OBJDIR)/menus.o $(OBJDIR)/options.o\
+        $(OBJDIR)/uservals.o $(OBJDIR)/ellemenu.o\
+        $(OBJDIR)/sybmainx.o $(OBJDIR)/logx.o\
+        $(OBJDIR)/pref77x.o $(OBJDIR)/ellex.o\
+        $(OBJSCMN)
+        
+PSOBJS= $(OBJDIR)/page.o $(OBJDIR)/lppak.o\
+        $(OBJDIR)/sybmain.o $(OBJDIR)/log.o\
+        $(OBJDIR)/pref77.o $(OBJDIR)/elle.o\
+        $(OBJSCMN)
+
+
+HDRS = routines.h types.h mainps.h sybfile.h filedat.h data.h error.h cmndefs.h\
+      plotdefs.h plot.h plotP.h menus.h globals.h log.h defines.h\
+       strain.h deform.h pref77.h colours.h string_utils.h elle.h\
+       arrays.h help.h sybilps.parameters limits.parameters
+
+DFLAGS = -DXSYB
+LOCAL_LIBRARIES = $(XMLIB) $(XTOOLLIB) $(XLIB)
+
+.SUFFIXES : .o .c .f
+
+#include "../basil.tmpl"
+
+AllTarget(sybil)
+
+SpecialObjectRule($(OBJDIR)/plot.o,$(SRCDIR)/plot.c,$(DFLAGS))
+SpecialObjectRule($(OBJDIR)/xpak.o,$(SRCDIR)/xpak.c,$(DFLAGS))
+SpecialObjectRule($(OBJDIR)/locate.o,$(SRCDIR)/locate.c,$(DFLAGS))
+SpecialObjectRule($(OBJDIR)/help.o,$(SRCDIR)/help.c,$(DFLAGS))
+SpecialObjectRule($(OBJDIR)/menus.o,$(SRCDIR)/menus.c,$(DFLAGS))
+SpecialObjectRule($(OBJDIR)/options.o,$(SRCDIR)/options.c,$(DFLAGS))
+SpecialObjectRule($(OBJDIR)/uservals.o,$(SRCDIR)/uservals.c,$(DFLAGS))
+SpecialObjectRule($(OBJDIR)/ellemenu.o,$(SRCDIR)/ellemenu.c,$(DFLAGS))
+SpecialRenameObjectRule($(OBJDIR)/sybmainx.o,$(SRCDIR)/sybmain.c,$(DFLAGS))
+SpecialRenameObjectRule($(OBJDIR)/logx.o,$(SRCDIR)/log.c,$(DFLAGS))
+SpecialRenameObjectRule($(OBJDIR)/pref77x.o,$(SRCDIR)/pref77.c,$(DFLAGS))
+SpecialRenameObjectRule($(OBJDIR)/ellex.o,$(SRCDIR)/elle.c,$(DFLAGS))
+
+/*
+ * link with fortran to save specifying different
+ * forlibs on different OS
+ */
+#ifdef OSF1Architecture
+EXTRA_LDOPTIONS= -nofor_main
+#endif
+
+/*#if defined(SunArchitecture) && OSMajorVersion == 4*/
+/*EXTRA_LDOPTIONS= -L/home/Motif1.2.4/lib*/
+/*#endif*/
+
+#ifdef LinuxArchitecture
+#endif
+
+NormalFortranProgramTarget(sybil,$(XOBJS),NullParameter,$(LOCAL_LIBRARIES),NullParameter)
+
+PreserveBinary(sybil,$(BINDIR))
+
+InstallProgram(sybil,$(BINDIR))
+                                                                                
+LinkMan($(MANDIR),$(DOCSDIR),sybil.l)
+
+AllTarget(sybilps)
+
+NormalFortranProgramTarget(sybilps,$(PSOBJS),NullParameter,$(LOCAL_LIBRARIES),NullParameter)
+
+PreserveBinary(sybilps,$(BINDIR))
+
+InstallProgram(sybilps,$(BINDIR))
+
+CleanMakefile()
+
+SRCS=   $(CSRCS)
+DependTarget()
+

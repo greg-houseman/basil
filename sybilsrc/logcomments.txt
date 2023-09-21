@@ -1,0 +1,69 @@
+# bar -         [vertical/horizontal/none]
+#               determines whether a colour bar appears and if it
+#               will be vertical (on the right of the plot) or
+#               horizontal (below the plot)
+# colour -      [greyscale/standard]
+#               specifies a standard colourmap or greyscale map 
+#               greyscale useful for output to b/w postscript printers
+# columns -     [1 -> 10]
+# contour_plot -n[+m] where n,m can be shade,lines
+# dble -        generate interpolation mesh 2 x nx3 x ny3
+#               (for periodic faults)[0/1]
+# filepath -    [0/1] 1=full filepath for solution files is saved to log files
+#                     0=FD.sols/solution_filename is saved to log files
+# flip -        not implemented
+# font_height - point height for default font [usually 10/12/14]
+#               This font size will be used for automatic labels
+# foreground -  [0->7] 0=white(ps)/black(screen) default background
+#                      1=black(ps)/white(screen) default foreground
+#                      2=red   3=green  4=blue  5=cyan
+#                      6=yellow  7=magenta
+# label -       display default plot labels[0/1]
+# linestyle -   [solid/dash/dot]. Applies to profile plots and marks,
+#               arrows and xy-plots.
+# linewidth -   [0.0->?] sets the width of all lines. (pixels or Post-
+#               Script points (72/in)
+# mark_cell -   [0/1] draw a dotted line around the current cell.
+#               This option is ignored by Sybilps.
+# mp   -        determines the number of arrows horizontally on an arrow plot
+#               ie every mpth point in the x direction on the interpolation mesh
+# mpe  -        controls the number of elements used in the mesh
+#               deformation plots, ie if mpe=n then deformation is
+#               calculated for every nth element
+# np   -        determines the number of arrows vertically on an arrow plot
+#               ie every npth point in the y direction on the interpolation mesh
+# nx3  -        no. points (+2) in the x direction on the interpolation mesh
+#               ny3 is calculated
+# orientation - [LANDSCAPE/PORTRAIT]
+# page_scale -  not implemented
+# page_xmargin- [0.0] margin on left and right sides of the page,
+#               expressed as a fraction of the page width.
+# page_ymargin- [0.0] margin on top and bottom of the page,
+#               expressed as a fraction of the page height.
+# profile_pts - no. points across interpolation mesh for profiles
+# rescale -     [0/1] rescale the next cell plotted. Scale is unchanged
+#               until another rescale= 1 is read.
+# rows -        [1 -> 10]
+# solution_rot -rotate x, y co-ords and velocity field 90deg x this
+#                value (anti-clockwise)
+# stipple -     [0/1/2/3/4]
+#               0 no stippling
+#               1 stipple below contour level
+#               2 stipple above contour level
+#               3 stipple if abs value above contour level
+#               4 stipple if abs value below contour level
+# text_bg -     [0/1] fill a background rectangle behind the text
+# ticmarks -    [internal/external/centred/none] draw tickmarks on the
+#               axes of profile plots
+# verbose -     [0/1/2] output the interpolation grid or profile values
+#               0 no output
+#               1 write the values to text files with the parameter as the 
+#                 filename extension (e.g. Sybil.Ux)
+#               2 write the values to the screen
+# xmargin -     [0.15] determines the margin on the left and right of the
+#               plot. Value is entered as a fraction of the cell width.
+# ymargin -     [0.1] determines the margin above and below the plot.
+#               Value is entered as a fraction of the cell height.
+# zoom -        multiplies the plot scale by this factor.
+# xcentre, ycentre -
+#               The centre of the plot when zoom factor not 1.

@@ -1,0 +1,116 @@
+#ifndef XCOMM
+#define XCOMM #
+#endif
+
+SRCDIR = .
+OBJDIR = .
+BINDIR = $(TOP)/bin
+MANDIR = $(TOP)/manl
+DOCSDIR = $(TOP)/docs
+
+FSRCS= $(SRCDIR)/xpoly.f
+FSRCT= $(SRCDIR)/polyfix.f
+FSRCU= $(SRCDIR)/selvect.f
+FSRCV= $(SRCDIR)/corotate.f
+FSRCD= $(SRCDIR)/dsyev2-F-1.0/dsyev2.f
+FSRCW= $(SRCDIR)/circles.f
+FSRCX= $(SRCDIR)/mdcomp.f
+FSRCY= $(SRCDIR)/basinv.f
+
+SRCS = $(FSRCS) $(FSRCT) $(FSRCU) $(FSRCV) $(FSRCW) $(FSRCX) $(FSRCY)
+
+OBJS = $(OBJDIR)/xpoly.o
+OBJT = $(OBJDIR)/polyfix.o
+OBJU = $(OBJDIR)/selvect.o
+OBJV = $(OBJDIR)/corotate.o
+OBJD = $(OBJDIR)/dsyev2.o
+OBJW = $(OBJDIR)/circles.o
+OBJX = $(OBJDIR)/mdcomp.o
+OBJY = $(OBJDIR)/basinv.o
+
+.SUFFIXES : .o .c .cc .f
+
+#include "../basil.tmpl"
+
+#ifdef OSF1Architecture
+EXTRA_LDOPTIONS= -nofor_main
+#endif
+
+AllTarget(xpoly)
+NormalFortranProgramTarget(xpoly,$(OBJS),NullParameter,NullParameter,-lstdc++)
+PreserveBinary(xpoly,$(BINDIR))
+InstallProgram(xpoly,$(BINDIR))
+LinkMan($(MANDIR),$(DOCSDIR),xpoly.l)
+CleanMakefile()
+/*
+DependTarget()
+*/
+#
+
+#
+AllTarget(polyfix)
+NormalFortranProgramTarget(polyfix,$(OBJT),NullParameter,NullParameter,-lstdc++)
+PreserveBinary(polyfix,$(BINDIR))
+InstallProgram(polyfix,$(BINDIR))
+LinkMan($(MANDIR),$(DOCSDIR),polyfix.l)
+CleanMakefile()
+/*
+DependTarget()
+*/
+
+#
+AllTarget(selvect)
+NormalFortranProgramTarget(selvect,$(OBJU),NullParameter,NullParameter,-lstdc++)
+PreserveBinary(selvect,$(BINDIR))
+InstallProgram(selvect,$(BINDIR))
+LinkMan($(MANDIR),$(DOCSDIR),selvect.l)
+CleanMakefile()
+/*
+DependTarget()
+*/
+
+#
+AllTarget(mdcomp)
+NormalFortranProgramTarget(mdcomp,$(OBJX),NullParameter,NullParameter,-lstdc++)
+PreserveBinary(mdcomp,$(BINDIR))
+InstallProgram(mdcomp,$(BINDIR))
+LinkMan($(MANDIR),$(DOCSDIR),mdcomp.l)
+CleanMakefile()
+/*
+DependTarget()
+*/
+
+#
+AllTarget(basinv)
+NormalFortranProgramTarget(basinv,$(OBJY),NullParameter,NullParameter,-lstdc++)
+PreserveBinary(basinv,$(BINDIR))
+InstallProgram(basinv,$(BINDIR))
+LinkMan($(MANDIR),$(DOCSDIR),basinv.l)
+CleanMakefile()
+/*
+DependTarget()
+*/
+
+#
+AllTarget(corotate)
+$(OBJD): $(FSRCD)
+	$(FC) -c -o $(OBJD) $(FSRCD)
+NormalFortranProgramTarget(corotate,$(OBJV) $(OBJD),NullParameter,NullParameter,-lstdc++)
+PreserveBinary(corotate,$(BINDIR))
+InstallProgram(corotate,$(BINDIR))
+LinkMan($(MANDIR),$(DOCSDIR),corotate.l)
+CleanMakefile()
+/*
+DependTarget()
+*/
+
+#
+AllTarget(circles)
+NormalFortranProgramTarget(circles,$(OBJW),NullParameter,NullParameter,-lstdc++)
+PreserveBinary(circles,$(BINDIR))
+InstallProgram(circles,$(BINDIR))
+LinkMan($(MANDIR),$(DOCSDIR),circles.l)
+CleanMakefile()
+/*
+DependTarget()
+*/

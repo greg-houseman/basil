@@ -1,0 +1,92 @@
+C
+C    routine to examine proximity of a point (XLOC,YLOC) to a boundary
+C    (XLON(NPTS), YLAT(NPTS)), used to reject points that are too close.
+C
+      SUBROUTINE BDIST(XLOC,YLOC,XLON,YLAT,NPTS,ICLOSE,DMIN)
+      DOUBLE PRECISION XLOC,YLOC,XLON,YLAT,AZIM,ARE2,XL,YL
+      DOUBLE PRECISION DEL1,DEL2,DEL3,CS1,CS2
+      DIMENSION XLON(NPTS),YLAT(NPTS)
+      DMIN=180.0
+      IF(NPTS.GT.1)THEN
+C
+C    ICLOSE=1 means the polygon is closed by connecting first and last points
+C
+        DO J=1,NPTS-1+ICLOSE
+          IF((ICLOSE.EQ.1).AND.(J.EQ.NPTS))THEN
+            XL=XLON(1)
+            YL=YLAT(1)
+          ELSE
+            XL=XLON(J+1)
+            YL=YLAT(J+1)
+          ENDIF
+C
+C     DEL1,2,3 are the sides of the triangle
+C  
+          CALL DISTAZ(XLOC,YLOC,XLON(J),YLAT(J),DEL1,AZIM)
+          CALL DISTAZ(XLOC,YLOC,XL,YL,DEL2,AZIM)
+          CALL DISTAZ(XLON(J),YLAT(J),XL,YL,DEL3,AZIM)
+          CS1=DEL2*DEL2 - (DEL1*DEL1 + DEL3*DEL3)
+          CS2=DEL1*DEL1 - (DEL2*DEL2 + DEL3*DEL3)
+C
+C     Internal angles are both acute if (XLOC,YLOC) within shadow of segment
+C
+          IF((CS1*CS2).LT.0.)THEN
+            DMIN=MIN(DEL1,DEL2)
+C
+C     perpendicular distance is 2*AREA/baseline length
+C
+          ELSE
+            ARE2=DABS(((XLON(J)-XLOC)*(YL-YLOC)-
+     :                 (XL-XLOC)*(YLAT(J)-YLOC)))
+            DMIN=ARE2/DEL3
+          ENDIF
+        ENDDO
+      ENDIF
+      RETURN
+      END
+C
+C    routine to make distance and azimuth calculations on a sphere
+C
+      SUBROUTINE DISTAZ(RLONG,RLATI,PLONG,PLATI,DELTA,AZIM)
+      IMPLICIT DOUBLE PRECISION(A-H,O-Z)
+C
+C   constant factors
+C
+      PI=3.14159265358979323846D0
+      DEGRAD=PI/180.D0
+C
+C     convert degrees to radians
+C
+      PLAT=PLATI*DEGRAD
+      PLON=PLONG*DEGRAD
+      RLAT=RLATI*DEGRAD
+      RLON=RLONG*DEGRAD
+C
+C    distance between two points (in radians)
+C
+      CD=DCOS(PLAT)*DCOS(RLAT)*DCOS(PLON-RLON) + DSIN(PLAT)*DSIN(RLAT)
+      DELTA=DACOS(CD)
+C
+C    azimuth of P at R
+C
+      CA=1.0D0
+      DENOM=DCOS(RLAT)*DSIN(DELTA)
+      IF(DENOM.NE.0.D0)CA=(DSIN(PLAT) - DSIN(RLAT)*CD)/DENOM
+      DLON=PLON-RLON
+      IF(DLON.LT.-PI)DLON=DLON+2.D0*PI
+      IF(DLON.GT. PI)DLON=DLON-2.D0*PI
+      IF(CA.GT.1.D0)CA=1.D0
+      IF(CA.LT.-1.D0)CA=-1.D0
+      IF((0.D0.LE.DLON).AND.(DLON.LE.PI))THEN
+        AZIM=DACOS(CA)
+      ELSE
+        AZIM=-DACOS(CA)
+      END IF
+C
+C     convert radians to degrees
+C
+      DELTA=DELTA/DEGRAD
+      AZIM=AZIM/DEGRAD
+C
+      RETURN
+      END

@@ -1,0 +1,415 @@
+02-02-96
+
+Optional labels are only processed while the dialog box is open. 
+Just select Option->Label->Edit as before but edit and place all
+your labels before clicking on the "Done" button. The font can be
+changed while the editing window is open.
+
+Fonts - Symbol fonts have been added to the submenu.
+
+Options - there are a couple of extra ones plus colourbar orientation
+in the Plot Options. The contour colourbar can be horizontal and below
+the plot or vertical on the right-hand side or absent.
+
+Density has been added as a menu option but does nothing.
+
+Profile plot axes labels - 3 decimal places if the value is less than
+10.0. This needs more work.
+
+Mesh plots - able to plot element numbers for every MPEth element.
+
+Log files - explanatory comments are now at the end of the file.
+
+-------------------------------------------------------------------
+12-02-96
+
+Titles on dialog boxes changed.
+
+Lagrangian mesh routines included.
+
+Log file bugs fixed - options were not saved (so could not be 
+                      rewritten) when sybil read a log file.
+                      Initial value for foreground was wrong
+                      if foreground colour option was changed
+                      during a plotting session.
+-------------------------------------------------------------------
+03-06-96
+
+ellipse routine included in mesh.f so that verbose flag allows output
+of best fit ellipse for each strain marker.
+
+-------------------------------------------------------------------
+06-06-96
+
+Fixed error which meant that arrow options Strain.pstd and Strain.pstm
+would not be recognized when reading from a log file.
+-------------------------------------------------------------------
+24-06-96
+
+Stress/Strain Arrow Plots - 
+Changes so that only single principal strain axis is drawn for plane
+strain solutions.
+
+Line Contours -
+Change to method of specifying line contours. They are now defined only
+by Level, Step and max number of contours and are independent of the max
+and min entered by the user. The max and min only affect the colour scale.
+The contour at Level is plotted plus half the max number of contours
+above and below Level (in intervals of Step).
+The cntr.limits line is no longer written to log files. In the case of
+old log files, the line is read but not acted on.
+
+Minor change to position of the colourbar. It is now placed one
+colourbar width to the right of the plot (or bar width below the plot)
+
+Previous filter retained for solution and log file selection boxes.
+-------------------------------------------------------------------
+11-07-96
+
+Use getcwd instead of getwd in menus.c.
+-------------------------------------------------------------------
+21-08-96
+
+New options - page_xmargin and page_ymargin.
+              page_size = A4(default)/USLetter
+              bar = horizontal/vertical/none  can be set in the log
+                    and sybil.in files.
+
+Fixed errors in calculation of THDI and setting of SEXP in strain.f
+
+Now runs with 64 colours if another application is open (causes
+flashing).
+
+Contouring properly implemented with double option.
+
+Profile plots stretched to fill cell (leaving xmargin and ymargin).
+
+Verbose output added for arrow plots.
+-------------------------------------------------------------------
+19-05-97
+
+Routines renamed to avoid ambiguity with basilsrc
+	crust.f -> topog.f
+	mesh.f  -> plmesh.f
+	main.c  -> sybmain.c
+-------------------------------------------------------------------
+-06-97
+
+Tic marks option for profile plots - inside, outside or spanning
+the axis.
+Introduced a text background option. Can be toggled on the label
+dialog box and saved to log file.
+
+Elle option for plotting polygons specified in Elle input files.
+Only written to log files if option turned on.
+-------------------------------------------------------------------
+15-08-97
+
+Several files split so the routines can be reused in other code.
+plmesh.f -> plmesh.f and dncom.f
+sybmain.c -> sybmain.c and arrays.c
+strain.f -> strain.f and stmesh.f
+file.c and file.h renamed sybfile.*
+
+makefile changed.
+
+log.c - fixed bug which caused zoom to work incorrectly when
+        reading a log file.
+-------------------------------------------------------------------
+02-02-98
+
+Changes to strain.f lines 74-118. Rearrangement of IF statements
+to get rid of compiler warning about GOTO 29. No GOTOs but logic
+should be the same. ENDIF below label 55 commented out.
+
+deform.f - changed 1.E-38 to 1.E-37
+
+c3code.f - line 107 changed (IC.NE.0.OR.J) to (IC.NE.0)
+
+options.c - ifdefs to allow the code to work with Motif 1.1
+menus.c - ifdefs to allow the code to work with Motif 1.1
+plot.c - ifdefs to allow the code to work with Motif 1.1
+
+sybmain.c - lines 466,474 replaced 16 with constant DATE_START and
+            48 with constant COMMENTS_START
+
+menus.c - changed ElleFileChosen so window is scaled to default 1x1
+          even if a basil solution file has not been opened
+
+sybilps.params - renamed sybilps.parameters
+lppak.f - INCLUDE statements reflect above change
+
+-------------------------------------------------------------------
+20-03-98
+
+arrow.f - line changed in ARWTWO drawing the max principal axis
+          IF((NCOMP.EQ.1).AND.(S1.GE.0.0))GO TO 3
+          ( was (S1.LT.0.0) in Lynn's versions)
+
+-------------------------------------------------------------------
+10-04-98
+
+menus.c - Warning dialog if max <= min for contour settings.
+          (Previously would cause a crash due to the assert in
+          scale.c)
+
+-------------------------------------------------------------------
+21-05-98
+
+elle.c   added lines after reading location data so that plot could
+         be rescaled to elle file bounding box.
+
+log.c    fixed bug in parameters for call to elle_plot_regions
+
+-------------------------------------------------------------------
+25-06-98
+
+deform.f
+ntrplt.f
+profil.f
+strain.f  double precision calculation of element areas in case
+          triangulation of poly files creates a small triangle
+
+-------------------------------------------------------------------
+30-6-98
+
+elle.c elle.h changes to routines to allow plotting of sheared
+              elle files (parallelograms rather than rectangles)
+
+-------------------------------------------------------------------
+17-7-98
+
+menus.c
+plot.c
+sybmain.c changes to allow reading of log files
+          with different row, col or orientation. ie sybil
+          window is redrawn.
+
+xpak.c    Dashed lines changed to match dash pattern of sybilps.
+          Dashes still not always visible on screen - depends on
+          line orientation, nx3 and type of plot.
+
+-------------------------------------------------------------------
+20-8-98
+
+menus.c  Font handling changed so the font for sybil is the same
+         across platforms. It can also be changed by a user setting
+         the resource in a resource file or using "xrdb" but the
+         font menus will retain their fonts.
+
+uservals.c Changed the format of the step variable in the contour
+           values dialog. Previously, if small, it could be read
+           as zero and cause a crash due to fpe.
+
+-------------------------------------------------------------------
+25-11-98
+
+lppak.f  Error in DRAWTICMARKS - drew internal instead of external.
+         
+lppak.f
+xpak.c
+pref77.c Changed the calculation of tic mark length. It is now
+         sqrt(xaxis length * yaxis length) and is passed to the
+         drawticmarks routine
+
+plot.c   Option ticmarks is now written to a log file if changed
+         by the user.
+
+-------------------------------------------------------------------
+09-04-99
+
+lppak.f  Change FILLPOLY to allow outline only for polygons
+         This allows the meshes to be drawn using this call and
+         ensures a closepath is written to the postscript file after
+         each triangle. Easier to work with the postscript output in
+         packages such as CorelDraw.
+
+-------------------------------------------------------------------
+26-04-99
+
+lppak.f
+plmesh.f Changes so that the Postscript output has a 'closepath'
+         command after each triangle when drawing the mesh (makes
+         it easier to colour/delete them in drawing packages)
+
+help.c    Fixed bug which made the Help window crash.
+
+elle.c
+sybfile.c
+data.h    Changes required by changes to basil (saving elle/poly
+          node numbers)
+
+-------------------------------------------------------------------
+09-09-99
+
+log.c     Changed read_options so that it did not report a fatal
+          error on an unknown option
+menus.c
+page.c    new function - warning_msg
+
+sybfile.c changes to functions which read basil solution records
+          (read_data_blk, skip_data_blk, read_ref_blk).  Linux
+          seems to use a long for the record length in an 
+          unformatted write while all other systems use an int.
+          On the PCs, int and long are both 4 bytes but on Alphas
+          a long is 8 bytes.
+
+-------------------------------------------------------------------
+03-05-00
+
+strain.f  changed         IF (SANGL.EQ.0.0.AND.CSANGL.EQ.0.0) THEN
+                            THETA = 0.0
+          to              IF (SANGL.EQ.0.0.AND.CSANGL.EQ.0.0) THEN
+                            ANGL = 0.0
+pref77.c  formatnumber_ for sybilps. strlen fails to give the right
+          length with a string created by fortran. Have to have a 
+          fortran version for compatibility with other code using 
+          lppak.f. It was causing rubbish characters to be printed on 
+          some OS (eg linux) so put in truncation check.
+
+-------------------------------------------------------------------
+08-05-00
+
+Changes to add new contour plots. Thickness changed to Layer with 
+submenu items thickness, gravPE, topog.
+menus.c
+log.c
+pref77.c
+strain.h
+log.h
+
+-------------------------------------------------------------------
+06-06-00
+
+Changes to add arrow plot of rotation (FROT array).
+menus.c
+log.c
+pref77.c
+arrow.f
+log.h
+cmndefs.h
+errnum.h
+sybmain.c
+
+-------------------------------------------------------------------
+21-06-00
+
+Pass verbose option to plmesh_ to allow printing of mesh data
+Verbose flag only set if mesh is specifically plotted not when 
+plotting a boundary around another plot
+plmesh.f  pref77.f
+
+Fixed mismatch in parameter list and allowed control of viscosity 
+colour range
+plmesh.f
+
+-------------------------------------------------------------------
+29-09-00
+
+plmesh.f - plot angle of rotation of strain markers if verbose set
+
+menus.c - invert waiting cursor colours so it shows up on dark bg
+          initialise msg string in ErrorMsg (was printing garbage on
+          linux)
+pref77.c - use max length setting for strncpy for strings edited by 
+          f77 - \0 not guaranteed so strlen no good.
+dncom.f - use basil version of this routine as some compilers made a
+          mess of the GOTO version when optimizing
+
+-------------------------------------------------------------------
+15-11-00
+
+log.c - error in the code written to implement the Layer options.
+        Added variable indx2 in read_contour_data and read_profile_data.
+
+-------------------------------------------------------------------
+05-03-01
+
+pref77.c - error in the code written to stretch profile plots to fit
+           the cell. Introduced a second line_len2 var which is the 
+           length of the stretched axis rather than overwriting the 
+           previously calculated length (line_len). Problem occurred 
+           when line_len passed to integrat_, diff values for area 
+           with different rows & columns etc.
+
+-------------------------------------------------------------------
+24-04-01
+
+pref77.c - removed "verbose=0" so that plmesh would print lgmesh data
+-------------------------------------------------------------------
+01-08-01
+
+menus.c - problem with working msg popup not disappearing after mesh
+drawn. Moved WorkingMsg(0) so it is called after UpdateCell. This
+problem on SUSe with OpenMotif libs. Box would disappear if mesh draw
+called again.
+-------------------------------------------------------------------
+10-09-02
+
+Changes to remove usused variables and include function declarations
+menus.c, log.c, uservals.c, options.c
+created xerror.h  added to Imakefile
+-------------------------------------------------------------------
+26-09-02
+
+1) To implement time-dependent viscosity.
+
+Magali Billen                     March 13, 2002
+                     updated August 2002
+______________________________________________________________
+
+Files/Subroutines Modified
+    data.h
+    sybfile.c (read_data_blk, skip_data_blk, read_ref_blk)
+-------------------------------------------------------------------
+26-11-02
+
+CHanges required to implement DEM input and spherical calculations
+
+dncom.f:  Fix Max, Min initialisation in RANGXY - only use values for
+          pts where IHELP not 0.
+          Change DNCOM to match basil DNCOM (need lib of  common files)
+profil.f
+ntrplt.f: EPS was a constant which was larger than x, y values in radians.
+          Tied epsx, epsy to the respective increments
+          double precision calculation for CNL
+topog.f:  Added SNORMTOPO. Called for the spherical case with ITOPO==1
+          and does the conversion back to elevation in m.
+          Still needs work if ARGAN>0
+          For non-spherical, much of the conversion is done in pref77.c
+strain.f: changes for spherical case
+menus.c:  GetProfileVals() converts radians to degrees and shifts x
+          coords so the user can enter profile limits in the same units
+          as the input DEM file
+options.c: tidy and add stdlib.h for malloc
+plot.c:   initialise msg buffer
+uservals.c: callback for profile line preview (previewline) has to
+            call projectxy for spherical case
+data.h:   add indices RISOST, REFLEV, XREFM, YREFM, TOPO
+globals.h: include cmndefs for routines which may not have done so
+
+-------------------------------------------------------------------
+09-05-03
+
+Changes made by GH and LE in Leeds (Apr 03)
+
+log.c, log.h, pref77.c, sybmain.c, types.h:
+        Changes for implementation of zoom option. A centre position and
+		zoom factor can be specified in the options section or in a log
+		file. It should also be a menu option...
+arrow.f: Fix for arrow velocity plot in case of spherical coordinates.
+        Verbose output is lat, long and angular velocities.
+limits.parameters: created to avoid DATA statements for constants eg PI
+
+../extra.rules: fixed syntax for preserve rule
+
+-------------------------------------------------------------------
+09-07-03
+
+ntrplt.f, pref77.c, stmesh.f
+passed NCOMP, IVERBOSE, XREFM, YREFM so strain values can be generated 
+if verbose set (as lon, lat if NCOMP=-1). Output from stmesh.f, flag passing to ntrplt unnecessary and may be cleaned out.
+
+options.c  Change to initialisation of toggle value
+
+pref77.c  In thickness output for verbose - using SSQ, should be BMESH?

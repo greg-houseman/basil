@@ -1,0 +1,194 @@
+#
+# Included files (relevant dependences not set up yet):
+# arrays.h   data.h     elle.h	filedat.h  log.h     plotdefs.h  pref77.h    string_utils.h  version.h
+# cmndefs.h  defines.h  errnum.h	globals.h  mainps.h  plot.h	 routines.h  sybfile.h	     xerror.h
+# colours.h  deform.h   error.h	help.h	   menus.h   plotP.h	 strain.h    types.h
+# limits.parameters  sybilps.parameters
+# 
+OBJDIR = ../objs
+SRCDIR = ../sybilsrc
+BINDIR = ../bin
+#
+#  Compiler flags for linux, gfortran
+#
+FOR = gfortran
+CC = gcc
+CPP = gcc
+#FFLAGS = -O
+#CFLAGS = -O
+# 
+# X11 include and lib files use this setting on MacOS
+#
+XINCLUDES = -I/opt/X11/include/
+XLDFLAGS = -lXm -lXt -lX11 -L/opt/X11/lib -L/usr/local/Cellar/openmotif/2.3.8_1/lib
+#
+# X11 include and lib files use this setting on ubuntu
+#
+#XINCLUDES =
+#XLDFLAGS = -lXm -lXt -lX11
+#
+# following compiler flag needed for sybil c-routines
+#
+DFLAGS = -DXSYB
+
+CSRCS=  $(SRCDIR)/sybmain.c $(SRCDIR)/plot.c $(SRCDIR)/xpak.c\
+        $(SRCDIR)/locate.c $(SRCDIR)/uservals.c $(SRCDIR)/help.c\
+        $(SRCDIR)/sybfile.c $(SRCDIR)/arrays.c $(SRCDIR)/menus.c\
+        $(SRCDIR)/pref77.c $(SRCDIR)/log.c $(SRCDIR)/parseopts.c\
+        $(SRCDIR)/options.c $(SRCDIR)/scale.c\
+        $(SRCDIR)/elle.c $(SRCDIR)/ellemenu.c $(SRCDIR)/page.c
+#
+FSRCS = $(SRCDIR)/plmesh.f $(SRCDIR)/ntrplt.f $(SRCDIR)/arrow.f\
+	$(SRCDIR)/strain.f $(SRCDIR)/stmesh.f $(SRCDIR)/dncom.f\
+	$(SRCDIR)/c3code.f $(SRCDIR)/cntr.f $(SRCDIR)/topogs.f\
+	$(SRCDIR)/deform.f $(SRCDIR)/profil.f $(SRCDIR)/lppak.f\
+	$(SRCDIR)/gravcp.f
+#
+SRCS = $(CSRCS) $(FSRCS)
+#
+#     object files organised for sybil, sybilps, and both in 3 groups
+#
+OBJSCMN = $(OBJDIR)/arrays.o $(OBJDIR)/parseopts.o $(OBJDIR)/scale.o\
+          $(OBJDIR)/sybfile.o\
+          $(OBJDIR)/arrow.o $(OBJDIR)/cntr.o $(OBJDIR)/c3code.o\
+          $(OBJDIR)/deform.o $(OBJDIR)/dncom.o $(OBJDIR)/gravcp.o\
+          $(OBJDIR)/ntrplt.o $(OBJDIR)/plmesh.o $(OBJDIR)/profil.o\
+          $(OBJDIR)/stmesh.o $(OBJDIR)/strain.o $(OBJDIR)/topogs.o
+
+PSOBJS = $(OBJDIR)/sybmain.o $(OBJDIR)/elle.o $(OBJDIR)/log.o\
+         $(OBJDIR)/pref77.o $(OBJDIR)/page.o\
+         $(OBJDIR)/lppak.o $(OBJSCMN)
+
+XOBJS =  $(OBJDIR)/sybmainx.o $(OBJDIR)/ellex.o $(OBJDIR)/logx.o\
+         $(OBJDIR)/pref77x.o $(OBJDIR)/ellemenu.o $(OBJDIR)/help.o\
+         $(OBJDIR)/locate.o $(OBJDIR)/menus.o $(OBJDIR)/options.o\
+         $(OBJDIR)/plot.o $(OBJDIR)/uservals.o $(OBJDIR)/xpak.o $(OBJSCMN)
+#
+all:  $(BINDIR)/sybilps $(BINDIR)/sybil
+#
+$(BINDIR)/sybil: ${XOBJS}
+	$(FOR) ${XOBJS} $(XLDFLAGS) -o $(BINDIR)/sybil
+#
+$(BINDIR)/sybilps: ${PSOBJS}
+	$(FOR) ${PSOBJS} $(LDFLAGS) -o $(BINDIR)/sybilps
+#
+#  note LDFLAGS should follow OBJS, or the library is not found on at 
+#  least one system (ununtu 20.04)
+#
+#   C compiles, first 4 compiled into distinct objects using DFLAGS
+#   for the X-windows version and not for the postscript version
+#
+$(OBJDIR)/sybmain.o: sybmain.c version.h
+	$(CC) -c $(CFLAGS) sybmain.c -o $(OBJDIR)/sybmain.o
+
+$(OBJDIR)/sybmainx.o: sybmain.c version.h
+	$(CC) -c $(CFLAGS) $(DFLAGS) sybmain.c $(XINCLUDES) -o $(OBJDIR)/sybmainx.o
+
+$(OBJDIR)/elle.o: elle.c
+	$(CC) -c $(CFLAGS) elle.c -o $(OBJDIR)/elle.o
+
+$(OBJDIR)/ellex.o: elle.c
+	$(CC) -c $(CFLAGS) $(DFLAGS) elle.c $(XINCLUDES) -o $(OBJDIR)/ellex.o
+
+$(OBJDIR)/log.o: log.c
+	$(CC) -c $(CFLAGS) log.c -o $(OBJDIR)/log.o
+
+$(OBJDIR)/logx.o: log.c
+	$(CC) -c $(CFLAGS) $(DFLAGS) log.c $(XINCLUDES) -o $(OBJDIR)/logx.o
+
+$(OBJDIR)/pref77.o: pref77.c
+	$(CC) -c $(CFLAGS) pref77.c -o $(OBJDIR)/pref77.o
+
+$(OBJDIR)/pref77x.o: pref77.c
+	$(CC) -c $(CFLAGS) $(DFLAGS) pref77.c $(XINCLUDES) -o $(OBJDIR)/pref77x.o
+#
+#    C compiles, the next 8 routines are used only in sybil
+#
+$(OBJDIR)/ellemenu.o: ellemenu.c
+	$(CC) -c $(CFLAGS) $(DFLAGS) ellemenu.c $(XINCLUDES) -o $(OBJDIR)/ellemenu.o
+
+$(OBJDIR)/help.o: help.c
+	$(CC) -c $(CFLAGS) $(DFLAGS) help.c $(XINCLUDES) -o $(OBJDIR)/help.o
+
+$(OBJDIR)/locate.o: locate.c
+	$(CC) -c $(CFLAGS) $(DFLAGS) locate.c $(XINCLUDES) -o $(OBJDIR)/locate.o
+
+$(OBJDIR)/menus.o: menus.c
+	$(CC) -c $(CFLAGS) $(DFLAGS) menus.c $(XINCLUDES) -o $(OBJDIR)/menus.o
+
+$(OBJDIR)/options.o: options.c
+	$(CC) -c $(CFLAGS) $(DFLAGS) options.c $(XINCLUDES) -o $(OBJDIR)/options.o
+
+$(OBJDIR)/plot.o: plot.c
+	$(CC) -c $(CFLAGS) $(DFLAGS) plot.c $(XINCLUDES) -o $(OBJDIR)/plot.o
+
+$(OBJDIR)/uservals.o: uservals.c
+	$(CC) -c $(CFLAGS) $(DFLAGS) uservals.c $(XINCLUDES) -o $(OBJDIR)/uservals.o
+
+$(OBJDIR)/xpak.o: xpak.c
+	$(CC) -c $(CFLAGS) $(DFLAGS) xpak.c $(XINCLUDES) -o $(OBJDIR)/xpak.o
+#
+#   C compile: the next routine is used only by sybilps
+#
+$(OBJDIR)/page.o: page.c
+	$(CC) -c $(CFLAGS) page.c -o $(OBJDIR)/page.o
+#
+#   C compiles: the following are used by both sybil and sybilps
+#
+$(OBJDIR)/arrays.o: arrays.c
+	$(CC) -c $(CFLAGS) arrays.c -o $(OBJDIR)/arrays.o
+
+$(OBJDIR)/parseopts.o: parseopts.c
+	$(CC) -c $(CFLAGS) parseopts.c -o $(OBJDIR)/parseopts.o
+
+$(OBJDIR)/scale.o: scale.c
+	$(CC) -c $(CFLAGS) scale.c -o $(OBJDIR)/scale.o
+
+$(OBJDIR)/sybfile.o: sybfile.c
+	$(CC) -c $(CFLAGS) sybfile.c -o $(OBJDIR)/sybfile.o
+#
+#    Fortran compile used only by sybilps
+#
+$(OBJDIR)/lppak.o: lppak.f
+	$(FOR) -c $(FFLAGS) lppak.f -o $(OBJDIR)/lppak.o
+#
+#    Fortran compiles, these are all used by both sybil and sybilps
+#
+$(OBJDIR)/arrow.o: arrow.f
+	$(FOR) -c $(FFLAGS) arrow.f -o $(OBJDIR)/arrow.o
+
+$(OBJDIR)/c3code.o: c3code.f
+	$(FOR) -c $(FFLAGS) c3code.f -o $(OBJDIR)/c3code.o
+
+$(OBJDIR)/cntr.o: cntr.f
+	$(FOR) -c $(FFLAGS) cntr.f -o $(OBJDIR)/cntr.o
+
+$(OBJDIR)/deform.o: deform.f
+	$(FOR) -c $(FFLAGS) deform.f -o $(OBJDIR)/deform.o
+
+$(OBJDIR)/dncom.o: dncom.f
+	$(FOR) -c $(FFLAGS) dncom.f -o $(OBJDIR)/dncom.o
+
+$(OBJDIR)/gravcp.o: gravcp.f
+	$(FOR) -c $(FFLAGS) gravcp.f -o $(OBJDIR)/gravcp.o
+
+$(OBJDIR)/ntrplt.o: ntrplt.f
+	$(FOR) -c $(FFLAGS) ntrplt.f -o $(OBJDIR)/ntrplt.o
+
+$(OBJDIR)/plmesh.o: plmesh.f
+	$(FOR) -c $(FFLAGS) plmesh.f -o $(OBJDIR)/plmesh.o
+
+$(OBJDIR)/profil.o: profil.f
+	$(FOR) -c $(FFLAGS) profil.f -o $(OBJDIR)/profil.o
+
+$(OBJDIR)/stmesh.o: stmesh.f
+	$(FOR) -c $(FFLAGS) stmesh.f -o $(OBJDIR)/stmesh.o
+
+$(OBJDIR)/strain.o: strain.f
+	$(FOR) -c $(FFLAGS) strain.f -o $(OBJDIR)/strain.o
+
+$(OBJDIR)/topogs.o: topogs.f
+	$(FOR) -c $(FFLAGS) topogs.f -o $(OBJDIR)/topogs.o
+
+clean: 
+	rm $(OBJDIR)/*.o

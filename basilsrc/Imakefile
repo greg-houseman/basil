@@ -1,0 +1,68 @@
+#ifndef XCOMM
+#define XCOMM #
+#endif
+
+SRCDIR = .
+OBJDIR = .
+BINDIR = $(TOP)/bin
+MANDIR = $(TOP)/manl
+DOCSDIR = $(TOP)/docs
+
+CSRCS= $(SRCDIR)/basmain.c\
+       $(SRCDIR)/tripoly.c $(SRCDIR)/trimesh.c $(SRCDIR)/triangle.c\
+       $(SRCDIR)/c_funcs.c $(SRCDIR)/polyutils.cc
+FSRCS= $(SRCDIR)/basil.F $(SRCDIR)/input.f\
+       $(SRCDIR)/crust.f $(SRCDIR)/cginit.f $(SRCDIR)/remesh.f\
+       $(SRCDIR)/conjgr.f $(SRCDIR)/vsbcon.f $(SRCDIR)/kdvaux.f\
+       $(SRCDIR)/mesh.f $(SRCDIR)/fltbcon.f $(SRCDIR)/fltgrid.f\
+       $(SRCDIR)/rotate.f $(SRCDIR)/visvar.f\
+       $(SRCDIR)/intstr.f $(SRCDIR)/lgmesh.f $(SRCDIR)/tvspres.f\
+       $(SRCDIR)/mfix.f $(SRCDIR)/rotind.f $(SRCDIR)/cform.f\
+       $(SRCDIR)/bforce.f $(SRCDIR)/topogb.f $(SRCDIR)/genflt.f\
+       $(SRCDIR)/straie.f
+
+SRCS = $(CSRCS) $(FSRCS)
+
+OBJS = $(OBJDIR)/remesh.o $(OBJDIR)/basmain.o\
+       $(OBJDIR)/tripoly.o $(OBJDIR)/trimesh.o $(OBJDIR)/triangle.o\
+       $(OBJDIR)/c_funcs.o $(OBJDIR)/polyutils.o\
+       $(OBJDIR)/basil.o $(OBJDIR)/input.o \
+       $(OBJDIR)/crust.o $(OBJDIR)/cginit.o \
+       $(OBJDIR)/conjgr.o $(OBJDIR)/vsbcon.o $(OBJDIR)/kdvaux.o\
+       $(OBJDIR)/mesh.o $(OBJDIR)/fltbcon.o $(OBJDIR)/fltgrid.o\
+       $(OBJDIR)/rotate.o $(OBJDIR)/visvar.o\
+       $(OBJDIR)/intstr.o $(OBJDIR)/lgmesh.o $(OBJDIR)/tvspres.o\
+       $(OBJDIR)/mfix.o $(OBJDIR)/rotind.o $(OBJDIR)/cform.o\
+       $(OBJDIR)/bforce.o $(SRCDIR)/topogb.o $(OBJDIR)/genflt.o\
+       $(OBJDIR)/straie.o
+
+HDRS =$(SRCDIR)/trimesh.h $(SRCDIR)/triangle.h $(SRCDIR)/poly.h\
+      $(SRCDIR)/tripoly.h $(SRCDIR)/polyutils.h $(SRCDIR)/polydata.h\
+      $(SRCDIR)/remesh.h\
+      $(SRCDIR)/input.parameters $(SRCDIR)/limits.parameters\
+      $(SRCDIR)/indices.parameters $(SRCDIR)/indices.data
+
+.SUFFIXES : .o .c .cc .f
+
+#include "../basil.tmpl"
+
+AllTarget(basil)
+
+SpecialObjectRule($(OBJDIR)/triangle.o,$(SRCDIR)/triangle.c,-DTRILIBRARY)
+
+#ifdef OSF1Architecture
+EXTRA_LDOPTIONS= -nofor_main
+#endif
+
+NormalFortranProgramTarget(basil,$(OBJS),NullParameter,NullParameter,-lstdc++)
+
+PreserveBinary(basil,$(BINDIR))
+
+InstallProgram(basil,$(BINDIR))
+
+LinkMan($(MANDIR),$(DOCSDIR),basil.l)
+
+CleanMakefile()
+
+SRCS = $(CSRCS)
+DependTarget()

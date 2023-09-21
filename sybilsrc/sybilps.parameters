@@ -1,0 +1,47 @@
+C*--------------------------------------------------------------------
+C*    Basil / Sybil:   sybilps.parameters  1.1  1 October 1998
+C*
+C*    Copyright (c) 1997 by G.A. Houseman, T.D. Barr, & L.A. Evans
+C*    See README file for copying and redistribution conditions.
+C*--------------------------------------------------------------------
+      INTEGER XINIT,YINIT,XMIN,XMAX,YMIN,YMAX,BXWD,BXHT,DUM,
+     :        XCMIN,XCMAX,YCMIN,YCMAX,PWINDO_ENTRIES,TIC_NONE,
+     :        PENDN,PENUP,DFLTFNT
+
+      PARAMETER ( PTSPERCM=28.34646 )
+C
+C   These definitions must match those in cmndefs.h
+C   Array indices will be offset by 1 from those in the C files
+C
+
+      PARAMETER ( ISYB_FILENAME_MAX=255 )
+      PARAMETER ( DEFAULTWIDTH=197.0)
+      PARAMETER ( DEFAULTHEIGHT=284.0)
+
+      PARAMETER ( PENDN=2)
+      PARAMETER ( PENUP=3)
+
+      PARAMETER ( DFLTFNT=14)
+
+      PARAMETER ( J_CENTRE=0)
+      PARAMETER ( J_BASE = 1)
+      PARAMETER ( J_TOP =  2)
+      PARAMETER ( J_LEFT = 1)
+      PARAMETER ( J_RIGHT= 2)
+      PARAMETER ( TIC_NONE = 3)
+
+C  pwindo indices
+      PARAMETER ( XINIT = 1)
+      PARAMETER ( YINIT = 2)
+      PARAMETER ( XMIN  = 3)
+      PARAMETER ( XMAX  = 4)
+      PARAMETER ( YMIN  = 5)
+      PARAMETER ( YMAX  = 6)
+      PARAMETER ( BXWD  = 7)
+      PARAMETER ( BXHT  = 8)
+      PARAMETER ( DUM   = 9)
+      PARAMETER ( XCMIN = 10)
+      PARAMETER ( XCMAX = 11)
+      PARAMETER ( YCMIN = 12)
+      PARAMETER ( YCMAX = 13)
+      PARAMETER ( PWINDO_ENTRIES = 13)
