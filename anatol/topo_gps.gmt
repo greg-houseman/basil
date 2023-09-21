@@ -1,0 +1,93 @@
+#!/bin/bash
+#		evolved from GMT EXAMPLE 27; modified by GAH
+# Purpose:	comparing array data produced using sybil with GPS data
+# GMT progs:	makecpt, blockmean, xyz2grd, grdimage, pscoast, psclip, psxy
+#
+#   usage: plot.gmt $1 $2 $3
+#          $1 is name of data file, $2 = diff differences the vectors
+#          $3 = grid, gets a fine grid superposed on plot
+#
+#   first construct the file that contains data and model (ex sybil)
+#
+#mdcomp $1
+#ptype=ed2i
+#ptype=dblc
+ptype=topo
+ps=tgps.ps
+region=-R19/42/33/43
+#  Jm is Mercator projection, JI is sinusoidal equal area
+#project=-JM15
+project=-JI30.0/25.
+tmap=/home/greg/work/gmt/EGM2008/ttopcs.cpt
+Anat=/home/greg/work/gmt/EGM2008/EuroT5.grd
+arrows=/home/greg/Research/aegean/PCE_160914/selvect.out
+faults=/home/greg/Research/FaultLab/maps/new_active_faults_turkey.txt
+polyb=NAF_mask
+#
+#   use the basemap command if clipping is activated, else comment out
+#
+gmt psbasemap $region $project -Ba2f0.5 -BWSne -K > $ps
+#
+#  make the topo plot
+#
+#grdinfo $Anat
+gmt grdimage $Anat $region $project -C$tmap -K -O >> $ps
+#
+#  use gmt pscoast to plot coastlines etc, same scale and projection
+#
+if [ "$1" == "grid" ]; then
+gmt pscoast $region $project -Ba1f1g0.2 -BWSNE -W1,blue -Dh+ -K -O >> $ps
+else
+gmt pscoast $region $project -Ba2f0.5 -BWSne -I3/blue -W0.5,blue -Dh+ -K -O >> $ps
+fi
+#
+#   add a colour scale for the topography
+#
+psscale -D21.5/3.0/5/0.5h -C$tmap -Bx2000g500+l"Topography (m)" -O -K >> $ps
+#
+#   add a region boundary if required
+#
+psxy F2.box $region $project -W2,yellow -L -N -K -O >> $ps
+#
+#  use a polygon boundary to exclude faults outside North Anatolian zone
+#
+psclip $polyb $region $project -P -K -O >> $ps
+#
+#   add faults
+#
+gmt psxy $faults $region $project -V -W1,red -K -O >> $ps
+#
+#   stop clipping if previously invoked
+#
+psclip -C -O -K >> $ps
+#
+#   label plot with run id
+#
+#echo "37.8 33.5 $1" | pstext  $region $project -F+a0.0+f28p,Helvetica-bold+jBL -N -K -O >> $ps
+#
+#   add GPS vectors, scale is set by number premultiplying sqrt
+#
+awk '{if (FNR >= 1) print $1, $2, (atan2($4,$3))*180.0/3.1415925, 0.04*sqrt($3*$3+$4*$4)}' $arrows | psxy $region $project -Sv.3+e -W1,black -N -K -O >> $ps
+#
+#  add arrows for scale, 40 mm/yr, using same factor of 0.04 as main plot
+#
+echo "38.6 36.3 40 mm/yr" | pstext  $region $project -F+a0.0+f14p,Helvetica+jBL -N -K -O >> $ps
+echo "39.0 36.0 0.0 1.6" | psxy $region $project -Sv.3+e -W1,black -N -O -K >> $ps
+#
+#  add labels
+#
+echo "29.5 42.0 Black Sea " | pstext  $region $project -F+a0.0+f14p,Helvetica,white+jBL -N -K -O >> $ps
+echo "27.7 40.6 MS" | pstext  $region $project -F+a0.0+f14p,Helvetica,black+jBL -N -K -O >> $ps
+echo "24.0 39.1 Aegean" | pstext  $region $project -F+a0.0+f14p,Helvetica,black+jBL -N -K -O >> $ps
+echo "24.8 38.7 Sea " | pstext  $region $project -F+a0.0+f14p,Helvetica,black+jBL -N -K -O >> $ps
+echo "20.5 35.5 Hellenic" | pstext  $region $project -F+a0.0+f14p,Helvetica,white+jBL -N -K -O >> $ps
+echo "21.5 35.1 Trench " | pstext  $region $project -F+a0.0+f14p,Helvetica,white+jBL -N -K -O >> $ps
+echo "26.5 33.5 Mediterranean Sea" | pstext  $region $project -F+a0.0+f14p,Helvetica,white+jBL -N -K -O >> $ps
+echo "29.4 39.0 Anatolia " | pstext  $region $project -F+a0.0+f14p,Helvetica,black+jBL -N -K -O >> $ps
+echo "28.955 41.014 " | psxy $region $project -Ss0.2 -W1,black -N -O -K >> $ps
+echo "29.0 41.1 Istanbul " | pstext  $region $project -F+a0.0+f14p,Helvetica+jBR -N -O >> $ps
+#
+#  throw plot to screen
+#
+evince $ps
+exit
