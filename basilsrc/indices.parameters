@@ -1,0 +1,59 @@
+C*--------------------------------------------------------------------
+C*    Basil / Sybil:   indices.parameters  1.1  1 October 1998
+C*
+C*    Copyright (c) 1997 by G.A. Houseman, T.D. Barr, & L.A. Evans
+C*    See README file for copying and redistribution conditions.
+C*--------------------------------------------------------------------
+
+      PARAMETER(  INX=       1, INY=       2, IIMSH=     3,
+     :            INCOMP=    4, IICR=      5, IIVIS=     6,
+     :            IIDEN=     7, IILAG=     8, IIFLT=     9,
+     :            IIGRAV=   10, INE=      11, INN=      12,
+     :            INMP=     13, INUP=     14, INBP=     15,
+     :            INBP2=    16, INUP2=    17, INROWS=   18,
+     :            IIDATA=   19, IIVV=     20, IKSTEP=   21,
+     :            IKSAVE=   22, IIDT0=    23, IKEXIT=   24,
+     :            IITSTOP=  25, IIPRINT=  26, IIWRITE=  27,
+     :            IISAVE=   28, IINDFIX=  29, IMPDEF=   30,
+     :            ILFLAT=   31, IJLV=     32, IIDEFTYP= 33,
+     :            IMROWS=   34, INXMAX=   35, INYMAX=   36,
+     :            INFP=     37, IIFCASE=  38, INELLEP=  39,
+     :            IIPOLY=   40, IIBCMOD=  41, INEL=     42,
+     :            INUL=     43, INSM=     44, INPM=     45,
+     :            INBL=     46, INRM=     47, IMSINDX=  48,
+     :            IIMREG=   49, IRHEOTYP= 50, IIVOLD=   51,
+     :            IITEMP=   52, IIDENS=   53, ITOPO=    54,
+     :            INSEG=    55, IITHDI=   56, IIPOLE=   57,
+     :            IIVRESET= 58, INFPF3=   59)
+
+       PARAMETER( IXLEN=     1, IYLEN=     2, IWFIT=     3,
+     :            IAC=       4, ITIMEL=    5, IBIG=      6,
+     :            ISE=       7, IHLENSC=   8, IARGAN=    9,
+     :            IARGANP=  10, IBRGAN=   11, IBRGANP=  12,
+     :            ITHRESH=  13, IAREA=    14, IVOLUM=   15,
+     :            IVISCD=   16, IDVMX=    17, IAREFM=   18,
+     :            IACNL=    19, ITSAVE=   20, ITEXIT=   21,
+     :            IBANGL=   22, IERA=     23, IOMTOT=   24,
+     :            IDEFV1=   25, IDEFV2=   26, IDEFV3=   27,
+     :            IDEFV4=   28, IDEFV5=   29, IBCV1=    30,
+     :            IBCV2=    31, IBCV3=    32, IBCV4=    33,
+     :            IBCV5=    34, IRHOG1=   35, IRHOG2=   36,
+     :            IRHOG3=   37, IRHOG4=   38, IRHOG5=   39,
+     :            IVISP1=   40, IVISP2=   41, IVISP3=   42,
+     :            IVISP4=   43, IVISP5=   44, IYLDSTR=  45,
+     :            IVELXO=   46, IVELYO=   47, ITBXOFF=  48,
+     :            ITBYOFF=  49, ISTELPR=  50, IBDEPSC=  51,
+     :            ITDIFF=   52, IALPHA=   53, IRISOST=  54,
+     :            IREFLEV=  55, IXREFM=   56, IYREFM=   57,
+     :            IGAMMA=   58, IELAREA=  59, IELSEG=   60,
+     :            IELQUAL=  61, IBETA=    62, ITREF=    63,
+     :            IVC=      64)
+
+      PARAMETER(  IMFIXF=    1, INDFORM=   2, IIGRID=    3,
+     :            IIOFF=     4, INUMREC=   5, IIST=      6,
+     :            INITER=    7)
+
+      PARAMETER(  ITILTDEG=   1 )
+
+      PARAMETER(  IXMIN=   1, IXMAX= 2, IYMIN= 3,
+     :            IYMAX=   4)
