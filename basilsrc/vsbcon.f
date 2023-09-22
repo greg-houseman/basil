@@ -1382,8 +1382,6 @@ C
       S2=1.0
       SS=0.0
       NC=0
-      PHI0=0.0
-      IF(IDEFTYP.EQ.110)PHI0=CENTLNG
 C
 C     For each node on the boundary
 C
@@ -1402,21 +1400,21 @@ C
           ELSE                     ! use pole tapered between pole1 and pole2
             TAPER=QBND(JX)
             CALL PTAPER(-1,S1,S2,SS,TAPER,
-     :                  POLEP(1,IP1),POLEP(1,IP2),POLET)  ! S1,S2,SS ignored here
+     :                  POLEP(1,IP1),POLEP(1,IP2),POLET)
           ENDIF
           NODE=IBC(JX)
           XN=EX(NODE)
           YN=EY(NODE)
 C
-C     get (lat,long) from coordinates in spherical projection
-C     OK if in rotated coordinate system (radians -> degrees)
-C
-          BPLAT=RTOD*YN - 90.0
-          BPLON=PHI0+RTOD*(XN/SIN(YN))
-C
 C   compute and set displacement rates derived from the pole of rotation
 C
           IF(POLET(3).NE.0.0)THEN
+C
+C     get (lat,long) from projected coordinates (radians -> degrees)
+C     if in rotated coordinate system CENTLNG should be zero.
+C
+            BPLON=CENTLNG+RTOD*(XN/SIN(YN))
+            BPLAT=RTOD*YN - 90.0
             CALL VELNE(POLET(2),POLET(1),BPLAT,BPLON,UYV,UXV)  ! (lat, long)
             XLOAD(NODE)=BIG*UXV*POLET(3)
             XLOAD(NODE+NUP)=BIG*UYV*POLET(3)
