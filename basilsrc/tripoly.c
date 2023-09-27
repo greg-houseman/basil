@@ -453,15 +453,10 @@ int readpolyinput( struct triangulateio *inp, char *infile,
         if (flags->quality<0) flags->quality=0;
         else if (i>0) flags->quality=i;
     }
-    rtnval=fscanf(fp,"^\n");
-    if (fscanf(fp,"\n")!=0) { // no conversions specified
-       rtnval=fprintf(stderr,"Problem reading end of regions\n");
-       return(1);
-    }
+    rtnval=fscanf(fp,"^\n"); // there may be an optional LF at end of file
   }
   fclose(fp);
-//return(0);
-  return(rtnval);
+  return(0); // if we got here, the file has been read
 }
 
 int readelleinput( char *infile, char *optionaltxt, int *maxindx, int **ielle)
