@@ -78,14 +78,9 @@ int findfltpts(struct gen_fault **list,struct triangulateio *out,
                int *nfp,int *newvert,int *newseg,int *newibc,int *ibcmoffv);
 void countpbpts(int *nn,int *countpb,int pbxy,float *ex,float *ey,float pdist);
 unsigned char is_bnd_pt(struct triangulateio *out,int index);
-unsigned char is_inex_bnd_pt(int id,int *iseg,int *label,int nseg);
 unsigned char is_flt_intersect_pt(int id,int fltid,struct gen_fault *list);
 unsigned char in_list(struct node *list, int id);
 struct node *newnode(int id);
-
-void bndextlimits_(int *,int *);
-void bndfltlimits_(int *,int *);
-int  CartesianToPolar(REAL, REAL, REAL, double *, double *);
 int createafault(struct triangulateio *out,
                  int *mpstart, int *vstart, int *fstart,
                  int *lem, float *ex, float *ey,
@@ -93,7 +88,6 @@ int createafault(struct triangulateio *out,
                  int *ifbc1,int *ifbc2,int *iseg,
                  int nbpfinal,int *nbpext,int *nseg,int *vxtotal,int *mptotal,
                  struct gen_fault *flt);
-int  crossingstest_(double *,int *, double *, int *);
 void findNeighbourPts(int node, int prev, int next,
                       struct triangulateio *out,
                         int *cnt, int *nbnodes, int maxnbs);
@@ -103,20 +97,27 @@ int findTriangV(int count, int start, int end, int *lem,
                   int ne, int *tri_1, int *tri_2);
 int findTriangM(int count, int midp, int nabr, int *lem,
                   int ne, int *tri_3);
-void findbbox_(float *,float *, float *, int *);
-int  find_maxnbs(float *ex,float *ey,int *lem,int ne,int nn);
 void insert_node(struct node *nnode,struct node **list,REAL *coords);
 void print_lists(struct gen_fault *list);
 int  reallocateArrays();
+void showbasilvar(int, int, int, float*, float *,int *, int*, int *);
+int  crossingstest_(double *,int *, double *, int *);
+
 /* these are defined and used in basmain.c - make new header?  */
 extern int AllocIntArray(int cnt, int **addr, int dflt);
 extern int AllocFlArray(int cnt, float **addr, float dflt);
 extern int AllocDblArray(int cnt, double **addr, double dflt);
+int  find_maxnbs(float *ex,float *ey,int *lem,int ne,int nn);
+/* these are defined in genflt.f */
+void bndextlimits_(int *,int *);
+void bndfltlimits_(int *,int *);
+/* defined in vsbcon.f */
+void findbbox_(float *,float *, float *, int *);
+/* defined in polyutils.c */
+int  CartesianToPolar(REAL, REAL, REAL, double *, double *);
 #ifndef MALLOC_ERR
 #define MALLOC_ERR = -1
 #endif
-
-void showbasilvar();
 
 /*****************************************************************************/
 /*                                                                           */
@@ -200,7 +201,7 @@ int trimesh( int *iflt, int *nup,int *nn,int *nmp,int *nbp, int *nnnof, int *nmp
 //  add up space needed for fault points
   if (*iflt!=0 && out.numberofsegments>0) {
     findfltpts(&flts,&out,nfp,&newvert,&newseg,&newibc,&ibcmoffv); 
-    if(!(*nfp)){
+    if(!(*nfp) && !pbxy){
         printf("warning:fault type is non-zero but no internal faults found, iflt reset to 0\n");
         *iflt=0;
     }
@@ -2128,12 +2129,7 @@ unsigned char is_bnd_pt(struct triangulateio *out,int index)
     return(bnd);
 }
 
-#ifndef  ANSI_DECLARATORS
-struct gen_fault *newfltnode(id)
-int id;
-#else
 struct gen_fault *newfltnode(int id)
-#endif
 {
     struct gen_fault *node = (struct gen_fault *)
                                malloc(sizeof(struct gen_fault));

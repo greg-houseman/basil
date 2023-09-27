@@ -223,6 +223,10 @@
  #define NO_TIMER 
 #endif
 
+/* No longer used but define it to avoid compiler warnings/errors */
+/* from function declarations                                     */
+#define ANSI_DECLARATORS 1
+
 /* To insert lots of self-checks for internal errors, define the SELF_CHECK  */
 /*   symbol.  This will slow down the program significantly.  It is best to  */
 /*   define the symbol using the -DSELF_CHECK compiler switch, but you could */
