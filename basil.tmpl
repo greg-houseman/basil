@@ -1,0 +1,70 @@
+#ifndef XCOMM
+#define XCOMM #
+#endif
+
+#ifndef PREFIX
+PREFIX=/usr/local
+#endif
+
+XCOMM LOCALDIR= $(PREFIX)/bin
+XCOMM LOCALLIB= $(PREFIX)/lib
+XCOMM LOCALMANL= $(PREFIX)/man/manl
+
+#ifdef SunArchitecture
+XCOMM CXX = g++
+XCOMM CC = gcc
+XCOMM CCOPTIONS = 
+XCOMM FC=g77
+#undef CCsuf
+#define CCsuf cc
+#endif
+
+#ifdef AlphaArchitecture
+CXX = g++
+#undef CCsuf
+#define CCsuf cc
+#endif
+
+F77LIB= -lfor
+
+/* --------------------------------------------------
+  if you get an error "can't find stdc++" from ld
+  you may need to 
+  sudo ln -s /usr/lib/libstdc++.so.6 /usr/lib/libstdc++.so
+  where '6' can be replaced by the version you need to link
+   --------------------------------------------------*/
+
+#ifdef LinuxArchitecture
+#if (GccMajorVersion > 3 )
+F77LIB= -lgfortran
+FC=gfortran -DGFORTRAN
+#else
+F77LIB= -lg2c
+FC=gfortran
+#endif
+#ifdef UseStaticf2cLib
+F77LIB= /usr/lib/libf2c.a
+#endif
+#endif
+
+#ifdef ppcArchitecture
+FC= fort77
+F77LIB= -lf2c
+#endif
+
+
+/* if using ifort
+FC=ifort
+EXTRA_LDOPTIONS=-nofor-main */
+
+#if defined(AMD64Architecture) || defined(x86_64Architecture)
+CC= gcc -m64
+CXX= g++ -m64
+/* if using gfortran
+FC=gfortran -m64
+*/
+EXTRA_LOAD_FLAGS=-L/usr/lib64
+/* needed specific path to find -lstdc++ on mandriva machine */
+/*EXTRA_LOAD_FLAGS=-L/usr/lib64 -L/usr/lib/gcc/x86_64-mandriva-linux-gnu/4.0.1*/
+#endif
+#include "extra.rules"
