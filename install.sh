@@ -6,6 +6,13 @@ read vname < version
 echo 'char version[8] = "' $vname '" ;' > basilsrc/version.h
 echo 'char version[8] = "' $vname '" ;' > sybilsrc/version.h
 #
+# executables will be moved into bin directory
+#
+if !( -e bin )
+then
+  mkdir bin
+fi
+#
 # build the makefiles
 #
 xmkmf

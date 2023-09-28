@@ -3,7 +3,7 @@
 
 #include "extra.rules"
 
-SUBDIRS = basilsrc sybilsrc grafdat xpoly
+SUBDIRS = basilsrc sybilsrc xpoly
 MANDIR = man
 DOCSDIR = docs
 
