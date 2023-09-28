@@ -1,0 +1,84 @@
+#ifndef XCOMM
+#define XCOMM #
+#endif
+
+/*
+ * build the target from objs using the Fortran compiler
+ */
+#ifndef NormalFortranProgramTarget
+#define NormalFortranProgramTarget(prog,objs,deplibs,loclibs,syslibs) @@\
+prog: objs deplibs                                                 @@\
+	RemoveTargetProgram($@)                                        @@\
+	$(FC) -o $@ objs $(LDOPTIONS) loclibs $(LDLIBS) syslibs \      @@\
+                             $(EXTRA_LOAD_FLAGS)                   @@\
+clean::                                                            @@\
+	$(RM) prog
+#endif /*NormalFortranProgramTarget*/
+/*
+ * build static target from objs using the Fortran compiler
+ */
+#ifndef NormalFortranStaticTarget
+#define NormalFortranStaticTarget(prog,objs,deplibs,loclibs,syslibs) @@\
+prog: objs deplibs                                                 @@\
+	RemoveTargetProgram($@)                                        @@\
+	$(FC) -o $@ objs $(LDOPTIONS) loclibs $(LDLIBS) syslibs \           @@\
+                             -static $(EXTRA_LOAD_FLAGS)                   @@\
+clean::                                                            @@\
+	$(RM) prog
+#endif /*NormalFortranStaticTarget*/
+
+/*
+ * build the object file (obj) from src using the C compiler
+ * obj and src can include paths so may not be in the current
+ * directory or have the same basename
+ */
+#define SpecialRenameObjectRule(obj,src,options)  @@\
+obj: src                                        @@\
+	$(CC) -c $(CFLAGS) options -o obj src
+
+/*
+ * don't think this works
+ */
+#define FObjCompileRule(srcdir,objdir)          @@\
+.f.o:                                           @@\
+	$(FC) $(FFLAGS) -c -o objdir/$@ srcdir/$<
+
+/*
+ * rename an existing binary by prepending OLD
+ */
+#define PreserveBinary(prog,dir)          @@\
+preserve::                                  @@\
+	if [ -f dir/prog ]; then           \ @@\
+	$(MV) dir/prog dir/Concat(OLD,prog); \ @@\
+	fi
+NamedTargetSubdirs(preserve,$(SUBDIRS),"making" preserve,NullParameter,preserve)
+
+/*
+ * clean Makefiles for cvs
+ */
+#define CleanMakefile()          @@\
+cleanmk::                                  @@\
+	$(RM) Makefile
+/*
+ * CleanmkSubdirs - generate rules to recursively clean out Makefiles.
+ */
+#ifndef NamedCleanmkSubdirs
+#define NamedCleanmkSubdirs(name,dirs) \
+NamedTargetSubdirs(name,dirs,"cleaning Makefile",NullParameter,cleanmk)
+#endif /* NamedCleanmkSubdirs */
+
+#ifndef CleanmkSubdirs
+#define CleanmkSubdirs(dirs) \
+NamedCleanmkSubdirs(cleanmk,dirs)
+#endif
+
+/*
+ * Link man pages
+ */
+#ifndef LinkMan
+#define LinkMan(destdir,srcdir,file) @@\
+install.man::                                  @@\
+	MakeDir(destdir) @@\
+	RemoveFile(destdir/file)                          @@\
+	$(LN) srcdir/file destdir/file 
+#endif /* LinkMan */
