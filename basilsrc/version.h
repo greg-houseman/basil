@@ -1,1 +1,1 @@
-char version[8] = " 1.7.6b " ;
+char version[8] = " 1.7.6c " ;

@@ -1,0 +1,18 @@
+#! /bin/bash
+#
+# provide version number to source directories
+#
+read vname < version
+echo 'char version[8] = "' $vname '" ;' > basilsrc/version.h
+echo 'char version[8] = "' $vname '" ;' > sybilsrc/version.h
+#
+# set up bin and objs directories
+#
+mkdir bin; mkdir objs
+#
+# enter each source directory and compile
+#
+cd basilsrc; make -f MakeSimple all ; cd ..
+cd grafdat; make -f MakeSimple all ; cd ..
+cd xpoly ;  make -f MakeSimple all ; cd ..
+cd sybilsrc ; make -f MakeSimple all ; cd ..

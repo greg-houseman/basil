@@ -1,0 +1,13 @@
+#define IHaveSubdirs
+#define PassCDebugFlags
+
+#include "extra.rules"
+
+SUBDIRS = basilsrc sybilsrc grafdat xpoly
+MANDIR = man
+DOCSDIR = docs
+
+MakeSubdirs($(SUBDIRS))
+DependSubdirs($(SUBDIRS))
+CleanMakefile()
+CleanmkSubdirs($(SUBDIRS))
