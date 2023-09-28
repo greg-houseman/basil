@@ -13,6 +13,5 @@ mkdir bin; mkdir objs
 # enter each source directory and compile
 #
 cd basilsrc; make -f MakeSimple all ; cd ..
-cd grafdat; make -f MakeSimple all ; cd ..
 cd xpoly ;  make -f MakeSimple all ; cd ..
 cd sybilsrc ; make -f MakeSimple all ; cd ..
