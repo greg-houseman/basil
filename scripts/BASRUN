@@ -1,0 +1,159 @@
+#! /bin/bash
+#
+#     The next two definitions are the things most likely to need changing
+#     First is name of file with GPS data.  Second is the misfit variable
+#     that should be set to either to weight, or raw as required.
+#     Both misfit measures are reported in mdcomp.out, but this variable 
+#     determines which will be used in the inversion basinv.
+#
+#  set the following variable to use the filename of the GPS dataset
+export gpsdata="TK_GR_1.data"
+#  You can use "raw" or "weight" for assessing fit to data
+export misfit="raw"
+#
+#     Usage: BASRUN PAR1 PAR2 PAR3 ...  PAR6
+#     where the PAR? are numerical values of the same PAR? defined 
+#     in TEMPLATE (use only those that are used in the template)
+#     Script developed from MAKE_EXPTS script of Philip England.
+#
+#     Script BASRUN is called by basinv to set up and execute a basil run 
+#     with a specific set of model parameters and determine its misfit 
+#     relative to a set of GPS vectors.
+#
+#     If basinv is run, the first call to BASRUN will use TEMPLATE
+#     and subsequent calls will use RESTART based on TEMPLATE.
+#     If ./BASRUN is called from the shell for a single calculation, 
+#     it will use the existing RESTART unless the file does not exist,
+#     in which case it will use TEMPLATE. To force a clean restart
+#     rm RESTART
+#
+#     The inversion is effective for relatively small numbers of 
+#     free parameters.  That number is specified by the PARAMETER
+#     NDIM in basinv.f.  It has been tested with as many as six 
+#     parameters to be determined, but is basically limited by the
+#     execution time increasing with the dimension of the inversion
+#     problem. Within this script the free parameters are determined 
+#     by the command line parameters, $1, $2, $3, etc. The inversion
+#     program does not really care what the free parameters are used
+#     for, but there is a basic supposition that changing any one of
+#     the parameters will affect the computed misfit.
+#
+#     basinv successively produces a new estimate of the optimum
+#     model parameter set using the multi-dimensional downhill simplex
+#     method described in Numerical Recipes
+#
+#     In this procedure files with name root MODEL are repeatedly 
+#     over-written.  If the final result is worth saving, the input file 
+#     that produced that result should be present as MODEL and may 
+#     be renamed as required and re-run with basil to get the solutions 
+#     saved with a useful file name.
+#
+#     establish necessary directories if not present already
+#
+if [ ! -e FD.sols ]
+then
+  mkdir FD.sols
+fi
+#
+if [ ! -e FD.out ]
+then
+  mkdir FD.out
+fi
+#
+#     set basil parameter values; refer INPUT_TEMPLATE to see how
+#     these parameters are used; add more parameters if needed
+#     by adding extra lines to define and use another PAR?, 
+#     modify the input template accordingly and start basinv
+#     with appropriate NDIM and parameter set.
+#
+export PAR1=$1
+export PAR2=$2
+export PAR3=$3
+export PAR4=$4
+export PAR5=$5
+export PAR6=$6
+#
+#   prepare edit commands used to produce MODEL from TEMPLATE
+#
+echo s/PAR1/${PAR1}/g > sedscM
+echo s/PAR2/${PAR2}/g >> sedscM
+echo s/PAR3/${PAR3}/g >> sedscM
+echo s/PAR4/${PAR4}/g >> sedscM
+echo s/PAR5/${PAR5}/g >> sedscM
+echo s/PAR6/${PAR6}/g >> sedscM
+#
+#   prepare edit commands used to produce RESTART from TEMPLATE
+#
+echo s/ MESH/ READ     BIN=MODEL\\n\# MESH/ > sedscR
+echo s/ TOPO/\#TOPO/ >> sedscR
+echo s/ DEFORM/\#DEFORM/ >> sedscR
+#
+#   construct the MODEL (basil input file) from TEMPLATE or RESTART
+#
+if [ -e RESTART ] && [ -e .itnumber ]; then
+  ITN=$(cat ".itnumber")
+  if [ $ITN == 1 ]; then
+    echo "File RESTART will be used for this and future calculations"
+    echo "If clean start required, rm RESTART and try again"
+  fi
+  let ITN++
+  sed -f sedscM RESTART > MODEL
+else 
+  echo "File TEMPLATE will be used now, and new RESTART file is established"
+  ITN=1
+  sed -f sedscR TEMPLATE > RESTART
+  sed -f sedscM TEMPLATE > MODEL
+fi
+#
+# write the file used to track the iteration number
+#
+echo $ITN > .itnumber
+#
+#      compute the basil solution 
+#
+basil MODEL > BAS.out
+if [ $? != 0 ]; then
+  echo "execution of basil has failed, check MODEL and FD.out/MODEL.out"
+  exit 1
+fi
+#
+#      run sybilps to output velocities
+#
+sybilps -i velM.log > SYB.out
+if [ $? != 0 ]; then
+  echo "execution of sybilps has failed, check velM.log"
+  exit 2
+fi
+#
+#      compare model velocity field (in veln.out) with gps-data
+#
+mdcomp ${gpsdata} veln.out > mdcomp.out
+if [ $? != 0 ]; then
+  echo "execution of mdcomp has failed, check mdcomp.out"
+  exit 3
+fi
+#
+#      extract the misfit statistic and save to currentMFSF for use by basinv
+#
+if [ $misfit == "raw" ]
+then
+  awk '(NR==2) {print $7}' mdcomp.out > currentMF
+  awk '(NR==2) {print $7, $4}' mdcomp.out > currentMFSF
+  awk '(NR==2) {print $4}' mdcomp.out > currentSF
+  echo $ITN Params: $PAR1 $PAR2 $PAR3 $PAR4 $PAR5 $PAR6 : Misfit-raw: > currentP
+elif [ $misfit == "weight" ]
+then
+  awk '(NR==3) {print $7}' mdcomp.out > currentMF
+  awk '(NR==3) {print $7, $4}' mdcomp.out > currentMFSF
+  awk '(NR==3) {print $4}' mdcomp.out > currentSF
+  echo $ITN Parameters: $PAR1 $PAR2 $PAR3 $PAR4 $PAR5 $PAR6 : Misfit-wgt: > currentP
+fi
+#
+#      provide information to user screen and to file: inv_record
+#
+echo Scale-V: > label
+paste currentP  currentMF label currentSF
+paste currentP  currentMF label currentSF >> inv_record
+/bin/rm currentP currentMF label currentSF
+exit 0
+

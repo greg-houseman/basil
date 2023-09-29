@@ -492,6 +492,7 @@ C
 C     Output the boundary condition matrices (if debugging only)
 C
    50 CONTINUE
+      IF(IERR.NE.0)RETURN
       IDOUT=11
       IF(IDOUT.EQ.0)RETURN
         OPEN(IDOUT,FILE='BCS')
