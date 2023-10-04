@@ -1,0 +1,58 @@
+This directory contains input files and sample output for calculations that are described in the paper:
+
+The Dynamics of the India-Eurasia collision: Faulted viscous continuum models constrained by high-resolution
+Sentinel-1 InSAR and GNSS velocities
+
+by: Jin Fang, Gregory A Houseman, Tim J Wright, Lynn A Evans, Tim J Craig, John R Elliott and Andy Hooper
+
+Journal of Geophysics (first submitted April 2023)
+
+If you have successfuly installed executables for basil and sybil, you can apply those programs to
+the files in this directory to:
+
+1. reproduce a specific solution by e.g. the command: basil JF1.1
+2. confirm that the solution has been obtained correctly by e.g. sybil -i Fig1.1.log
+   and confirm that the solution shown on the screen is the same as shown in Fig1.1.png
+3. use sybil in interactive mode to examine other aspects of the solution.
+
+Before step 1 above, within this directory make the following two sub-directories using: 
+mkdir FD.sols ; mkdir FD.out
+to receive basil output files, and use the basil and sybil commands within this directory.
+The files JF?.? are referred to as the basil input files, and the numbers in the name 
+reference the specific solutions described in the corresponding sections of the paper.
+The input file specifies parameter values, program settings, and boundary conditions used
+in a calculation.
+
+These input files direct basil to use:
+
+tibet.xyz which is a low-resolution representation of the Asian topography field used to calculate 
+an approximate representation of the gravitational potential energy, and
+
+TB.poly which contains the designation of the external boundary and the internal structures which
+are used to define domain boundaries with different viscosity and / or faults on which relative
+displacements can occur.
+
+To see a graphical representation of these input files use: sybil -i topomesh.log (after step 1 above)
+
+The two (initially empty) directories FD.sols and FD.out are used to accept basil output.  The output
+that comes to the screen provides only a summary of the calculation; its main purpose is to provide
+confirmation of exactly what was done in a basil calculation.
+
+The complete solution for a basil calculation is located in FD.sols using the same name as the input
+file in this directory.  The solution is stored in binary form produced by fortran unformatted write.
+The principal method of extracting specific data relies on sybil (screen output) or sybilps (postscript)
+to produce graphical output or ordered lists of formatted numbers for specific aspects of the solution
+that can be used for example in a gmt script.
+
+Basil calculations and output variables are all in dimensionless form.  Refer to the supplementary
+information that accompanies the paper for a summary of how the scaling parameters for key variables
+are specified or determined.
+
+In case of errors / problems that can be pinned on basil or sybil, we may be able to advise or fix, 
+but if you want to run these calculations on Windows or Mac we might need your advice on how to get 
+sybil working, as we are specifially set up for running on linux and neither MacOS nor Windows seem
+particularly well adapted to work with the X windows environment.  There is also a known issue with
+postscript produced by sybilps not properly displaying colors on MacOS and we would be interested to 
+understand why that is.  The workaround is to convert the ps to a pdf using ps2pdf.
+
+
