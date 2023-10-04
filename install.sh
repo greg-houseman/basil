@@ -8,7 +8,7 @@ echo 'char version[8] = "' $vname '" ;' > sybilsrc/version.h
 #
 # executables will be moved into bin directory
 #
-if !( -e bin )
+if ! [ -e bin ]
 then
   mkdir bin
 fi
