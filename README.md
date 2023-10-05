@@ -7,9 +7,9 @@ The program can provide solutions for plane-strain, thin viscous sheet (plane-st
 The program can be installed on a linux system from the zip package on the GitHub website as follows:
 "unzip basil-main.zip ; cd basil-main ; ./install.sh ;"
 If successful a set of executables will be left in basil-main/bin.
-The linux compilation  uses xmkmf and the sybil program GUI uses OpenMotif which both need to be installed on the system.
-An alternative compilation script ./InstallS does not require xmkmf.
-InstallS has been used on MacOS systems but successful compilation using InstallS
-usually requires editing of the files basilsrc/MakeSimple and sybilsrc/MakeSimple in order to specify correct location of libraries 
-and use of sybil on a MacOS system requires XCode and XQuartz.
+The linux compilation  uses xmkmf (apt-get install xutils-dev) and the sybil program GUI uses OpenMotif (apt-get install libmotif-dev) which both need to be installed on the system.
+An alternative compilation script ./InstallS does not require xmkmf and 
+has been used on MacOS systems. Successful compilation using InstallS
+usually requires editing of the files basilsrc/MakeSimple and sybilsrc/MakeSimple in order to specify correct location of libraries.
+Use of sybil on a MacOS system also requires XCode and XQuartz.
 Basil is a complex research tool for which documentation is under construction.  Effective use may require advice from the developers.
