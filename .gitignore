@@ -1,0 +1,6 @@
+Makefile
+basilsrc/Makefile
+bin/
+manl/
+sybilsrc/Makefile
+xpoly/Makefile
