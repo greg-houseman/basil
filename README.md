@@ -4,8 +4,8 @@ The program uses the finite element method and depends on the triangle package o
 with flexible boundary conditions on velocity or traction.
 The program can provide solutions for plane-strain, thin viscous sheet (plane-stress), thin viscous shell, or axiymmetric cases.
 The program can be installed on a linux system from the zip package on the GitHub website (using the green "Code" button) as follows:\
-unzip basil-main.zip\ 
-cd basil-main\ 
+unzip basil-main.zip\
+cd basil-main\
 ./install.sh\
 If successful a set of executables will be left in basil-main/bin.
 You can access man pages for basil and sybil by ammending the MANPATH environment variable,
@@ -13,9 +13,9 @@ You can access man pages for basil and sybil by ammending the MANPATH environmen
 export BASILPATH=/home/yourpath/basil-main\
 export PATH=$PATH:$BASILPATH/bin\
 export MANPATH=$MANPATH:$BASILPATH\
-The linux compilation script install.sh uses:\ 
-xmkmf (apt-get install xutils-dev)\ 
-and the sybil program GUI usesi:\ 
+The linux compilation script install.sh uses:\
+xmkmf (apt-get install xutils-dev)\
+and the sybil program GUI uses:\
 OpenMotif (apt-get install libmotif-dev)
 An alternative compilation script ./InstallS does not require xmkmf and 
 has been used on MacOS systems. Successful compilation using InstallS
