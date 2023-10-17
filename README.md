@@ -16,14 +16,13 @@ export MANPATH=$MANPATH:$BASILPATH\
 The linux compilation script install.sh uses:\
 xmkmf (apt-get install xutils-dev)\
 and the sybil program GUI uses:\
-OpenMotif (apt-get install libmotif-dev)
+OpenMotif (apt-get install libmotif-dev)\
 An alternative compilation script ./InstallS does not require xmkmf and 
 has been used on MacOS systems. Successful compilation using InstallS
 usually requires editing of the files basilsrc/MakeSimple and sybilsrc/MakeSimple in order to specify correct location of libraries.
 Use of sybil on a MacOS system also requires XCode and XQuartz.
 Basil is a complex research tool designed for use in the command line environment.
-Documentation is under construction.  
-Effective use may require advice from the developers.  
-You can contact us using the "issues" button on the GitHub page.
+Documentation is under construction. Effective use may require advice from the developers. 
+You can contact us using the "issues" button on the GitHub page.  
 As always, any numerical calculation
 should be verified as far as practical by comparison with other solution methods.
