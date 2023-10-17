@@ -391,7 +391,7 @@ C
      :                  LGEM,EXLG,EYLG,STELPX,STELPY,
      :                  UXLG,UYLG,LGIBC,LGIBCF,
      :                  INTV(INE),INTV(INUP),INTV(INBP),
-     :                  INTV(INMP),INTV(INSEG),
+     :                  INTV(INMP),INTV(INSEG),IVERB,
      :                  GSDUDX,GSDUDY,GSDVDX,GSDVDY,
      :                  INITVEL,REMESHFLAG,NEGTIM,IERROR)
       CLOSE(LBC)

@@ -506,7 +506,7 @@ C
      :                  JFBC1,JFBC2,IENDP1,IENDP2,NFPF3,
      :                  LGEM,EXLG,EYLG,STELPX,STELPY,
      :                  UXLG,UYLG,LGIBC,LGIBCF,
-     :                  NE,NUP,NBP,NMP,NSEG,
+     :                  NE,NUP,NBP,NMP,NSEG,IVERB,
      :                  GSDUDX,GSDUDY,GSDVDX,GSDVDY,INITVEL,
      :                  REMESHFLAG,NEGTIM,IERROR)
 C
