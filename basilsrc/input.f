@@ -818,7 +818,7 @@ C           CALL SMATPP(UVP,IV(INUP)*2)
 C
 C          Read and set boundary conditions from the basil input file
 C
-            IDBUG=0
+C           IDBUG=0
             REWIND(LBC)
 C           WRITE(*,*)'ISEG array properties'
 C           CALL MITPRT(ISEG,IV(INSEG),1,IV(INSEG),6)
@@ -831,7 +831,7 @@ C
      :                  IV(IIDEFTYP),ISEG,IV(INSEG),IV(INUP),
      :                  IV(INE),IV(INN),IV(INBP),IV(IIFLT),
      :                  IV(INFP),NFPF3,IFBC1,IFBC2,IFEQV,JFBC1,JFBC2,
-     :                  LBC,LUW,LSC,IDBUG,IERROR)
+     :                  LBC,LUW,LSC,IVERB,IERROR)
             IV(IIPOLE)=IPOLE
 C           DO J=1,NBP
 C             IF(IBPOLE(J,1).NE.0)THEN

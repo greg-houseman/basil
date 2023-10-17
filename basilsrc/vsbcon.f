@@ -492,30 +492,27 @@ C
 C     Output the boundary condition matrices (if debugging only)
 C
    50 CONTINUE
-      IF(IERR.NE.0)RETURN
-      IDOUT=11
-      IF(IDOUT.EQ.0)RETURN
+C     IF(IERR.NE.0)RETURN
+      IF(IDBUG.NE.0)THEN
+        IDOUT=11
         OPEN(IDOUT,FILE='BCS')
         WRITE(IDOUT,10101)
 10101   FORMAT(' ',/,'Array data from VSBCON:',/,
      :  '   J      X        Y      IBC  NGH1  NGH2 TYPX   QBND_X',
      :  '    TYPY    QBND_Y')
         DO 600 J=1,NBP
-          QEX=EX(NOR(IBC(J)))
-          QEY=EY(NOR(IBC(J)))
+          QEX=EX(IBC(J))
+          QEY=EY(IBC(J))
           IF(IDEFTYP.GE.110)THEN
             CALL PROJECTDEG(QEX,QEY,XMID,YMID,1,NCOMP,IERR)
           ENDIF
           JP=J+NBP
-          UU=QBND(J)
-          IF(IBCTYP(J).EQ.0.0)UU=UU
-          VV=QBND(JP)
-          IF(IBCTYP(JP).EQ.0.0)VV=VV
           WRITE(IDOUT,10102)J,QEX,QEY,IBC(J),
-     1               IBNGH(J),IBNGH(JP),IBCTYP(J),UU,IBCTYP(JP),VV
+     :      IBNGH(J),IBNGH(JP),IBCTYP(J),QBND(J),IBCTYP(JP),QBND(JP)
 10102     FORMAT(I5,2F9.3,3I6,I4,G14.5,I4,G14.5)
   600   CONTINUE
         CLOSE(IDOUT)
+      ENDIF
 C
       RETURN
       END

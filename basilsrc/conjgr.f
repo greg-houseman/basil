@@ -165,7 +165,7 @@ C
 C     if satisfactory convergence return solution
 C
 C     CALL DATIME(IDAY,ISEC,1)
-      IF(IVERB.GT.0)THEN
+      IF(IVERB.GT.10)THEN
         IF(MOD(K,IVERB).EQ.0)
      :            WRITE(LSC,10002)K,RESIUV,RESIST,RESIPR,BETA
       ENDIF

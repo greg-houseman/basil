@@ -589,30 +589,6 @@ C    check that IDT0 is >= 1/TSAVE
       KREMESH=0
       IREM=0    ! changed to 1 on first remesh
 C
-C     Output the boundary condition matrices (if debugging only)
-C
-      IDOUT=11
-      IF(IDOUT.GT.0)THEN
-        OPEN(IDOUT,FILE='BCS')
-        WRITE(IDOUT,20101)
-20101   FORMAT(' ',/,'Array data from VSBCON:',/,
-     :  '   J      X        Y      IBC  TYPX   QBND_X',
-     :  '    TYPY    QBND_Y')
-        DO J=1,INTV(INBP)
-          QEX=EX(IBC(J))
-          QEY=EY(IBC(J))
-          IF(INTV(IIDEFTYP).GE.110)THEN
-            CALL PROJECTDEG(QEX,QEY,CENTLNG,YMID,1,INTV(INCOMP),IERR)
-          ENDIF
-          JP=J+INTV(INBP)
-          UU=QBND(J)
-          VV=QBND(JP)
-          WRITE(IDOUT,20102)J,QEX,QEY,IBC(J),IBCTYP(J),UU,IBCTYP(JP),VV
-20102     FORMAT(I5,2F9.3,I6,I4,G14.5,I4,G14.5)
-        ENDDO
-        CLOSE(IDOUT)
-      ENDIF
-C
 C     -------------------------------------------------start timestep
 C     commence the main loop
 C
