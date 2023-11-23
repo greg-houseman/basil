@@ -1,0 +1,14 @@
+Options   orientation=LANDSCAPE paper_size=A4 mark_cell=1 
+          filepath= 0 rows= 2 columns= 2 font_height=12 
+          xmargin=  0.15 ymargin=  0.10 page_xmargin=  0.00 
+          page_ymargin=  0.00 page_scale=  1.00 zoom=  1.00 
+          xcentre=  0.00 ycentre=  0.00 tl0=100.00 rhoc= 2.900 
+          rhom= 3.300 z0=160.000 tmax= 2.500 elev0= 0.250 
+          bgam0= 0.072 bgam1= 0.139 ndivr= 20.0 s0=  0.0 
+          dels= 0.025 delom=10.000 nx3=  423 mp=21 mpe= 6 
+          np=21 contour_plot=shade+lines profile_pts=  51 
+          flip= 0 dble= 0 label= 1 stipple= 0 solution_rot= 0 
+          foreground=  1 linestyle=solid linewidth=  1.00 
+          colour=standard bar=vertical visc_min=  0.00 
+          visc_max=  0.00 se_min=  0.00 se_max=  0.00 
+          clip_to_cell= 0 verbose= 0 ticmarks=external 

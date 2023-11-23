@@ -1,0 +1,62 @@
+1. Setup commands -
+---------------------------------------------------------
+  
+ LABEL    Basic Indenter problem, Cartesian
+#
+# when setting up a problem defined by a POLY file, use the GEOMETRY
+# command first to set NCOMP, but don't set XZERO, YZERO, XLEN, YLEN
+# as these will be obtained from the POLY file, which should follow.
+#
+ MESH     TYPE=0 NX=48 NY=24 FAULT=0 AREA=0.05 QUALITY=15
+#POLY     FILE=GPE.poly
+ GEOMETRY XZERO=0.0, XLEN=1.0, YZERO=0.0, YLEN=1.0, &
+          NCOMP = 0, IGRAV=4
+ VISDENS  SE=10.0
+ LAYER    THICKNESS HLENSC=50.0 BDEPSC=0.35 ARGAN=0.0 &
+          THRESH=10.0 BRGAN=0.0 RISOST = 0.0628
+ BCOND
+#SERIES   TIME, THMIN, THMAX
+ LAGRANGE MARKERS
+
+  
+   2. Timestep commands
+   ---------------------------------------------------------
+  
+ SOLVE    AC = 5.0E-7, ACNL = 5.0E-5, ITSTOP = 1000
+ STEPSIZE TYPE=RK, IDT0=20, MPDEF=5
+ SAVE     KSAVE=20, TSAVE=0.06
+ STOP     KEXIT=100, TEXIT=0.24, IWRITE=200
+  
+3. Boundary condition commands -
+----------------------------------------------------
+
+# left boundary, symmetry plane
+ ON X = 0.0 : UX = 0.0
+ ON X = 0.0 : TY = 0.0
+
+# right boundary and top boundary fixed
+ ON X = 1.0 : UX = 0.0
+ ON X = 1.0 : UY = 0.0
+ ON Y = 1.0 : UX = 0.0
+ ON Y = 1.0 : UY = 0.0
+
+# bottom boundary, background fixed
+ ON Y = 0.0 : UX = 0.0
+ ON Y = 0.0 : UY = 0.0
+
+# indentor function
+ ON Y = 0.0 FOR X = 0.0 TO 0.25 : UY = 1.0
+
+# tapered side
+ ON Y = 0.0 FOR X = 0.25 TO 0.5 : UY = 1.0 TO 0.0 : TP = 2
+
+4. Physical Parameter commands
+-----------------------------------------------------------
+
+#  Insert REG commands for spatially varying viscosity
+
+5. Strain marker commands
+-----------------------------------------------------------
+
+ MARKERS  ROWS=6, COLS=6, R=0.025, XMIN=0.1, XMAX=0.6, &
+           YMIN=0.1,YMAX=0.6

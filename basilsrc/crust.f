@@ -168,42 +168,37 @@ C
 C
 C    Calculate the timestep using the following criteria:
 C
-C    a) Check that the next timestep will not skip over the
-C      round timelevel on which solutions are saved.
-C
-      INVDT=IDT0
-   20 CONTINUE
-      IF((T+1.0/FLOAT(INVDT)).GT.(TTSV+TSAVE+0.0001))THEN
-        INVDT=2*INVDT
-        GO TO 20
-      END IF
-C
 C    b) No element should be stretched or compressed by more
 C       than (100/MPDEF)% in any given timestep
 C    c) The product of growth rate (sigma) times DT < 1/4
 C
-      ITMIN=INVDT
-      IT=ITMIN
-      DEFLIM=1.0/FLOAT(MPDEF)
-      GRLIM=0.25
+      EPS=0.0001
+      IT=IDT0
+      DEFLIM=DVMX*FLOAT(MPDEF)
+C     GRLIM=0.25      ! for growth rate criteia not enabled at present
 C
-C     successively halve time step until it passes criteria
+C     successively halve time step until it passes deformation criteria
 C
-  120 DCR=DVMX/FLOAT(IT)
-      GRDT=SIGMA/FLOAT(IT)
-C     IF((DCR.LE.DEFLIM).AND.(GRDT.LE.GRLIM))GO TO 121
-      IF((DCR.LE.DEFLIM))GO TO 121
-      IT=IT*2
-      GO TO 120
+      DO WHILE(FLOAT(IT).LT.DEFLIM)
+        IT=IT*2
+      ENDDO
 C
 C     successively double time step if it is already smaller than needed
 C
-C 121 IF((DCR.GE.DEFLIM*0.25).OR.(GRDT.GE.GRLIM*0.25))GO TO 122
-  121 IF(DCR.GE.DEFLIM*0.25)GO TO 122
-      IF((IT/2).LT.ITMIN)GO TO 122
-      IT=IT/2
-      GO TO 120
-  122 DT=1.0/FLOAT(IT)
+      DO WHILE((IT.GE.2*IDT0).AND.(FLOAT(IT).GT.(2.0*DEFLIM)))
+        IT=IT/2
+      ENDDO
+      DT=1.0/FLOAT(IT)
+C
+C    ensure that solution is calculated and saved on integer multiple
+C    of TSAVE, even if it is stored at other times also because of KSAVE
+C
+      NLEVL=1+INT(T/TSAVE)
+      IF((T.LT.(TSAVE*FLOAT(NLEVL)-EPS)).AND.
+     :   ((T+DT).GT.(TSAVE*FLOAT(NLEVL)+EPS)))THEN
+        DT=TSAVE*FLOAT(NLEVL)-T
+      END IF
+      IF(ABS(T+DT-TSAVE*FLOAT(NLEVL)).LT.EPS)TTSV=TSAVE*FLOAT(NLEVL-1)
 C
       RETURN
       END

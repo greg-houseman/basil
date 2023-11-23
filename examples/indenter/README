@@ -1,0 +1,64 @@
+This directory contains a selection of input files and sample output for calculations that are 
+described in the paper:
+
+Finite Strain Calculations of Continental Deformation 1. Method and General Results for Convergent Zones
+
+by: Gregory Houseman and Philip England
+
+Journal of Geophysical Resaerch, Vol 91, 3651-3653, 1986.
+
+If you have successfuly installed executables for basil and sybil, you can apply those programs to
+the files in this directory to:
+
+1. reproduce selected solutions by e.g. the command: basil INn3A1
+2. compute the solutions for the input files INn1A0, INn3A0, INn10A0, then run sybil -i Fig3_edzz.log
+   to display maps of vertical strain rate that correspond to frames j,k,l of Figure 3 in the paper.
+3. compute the solutions for the input files INn3A0, INn3A1, INn10A1, then run sybil -i Fig4n3.log
+   to display maps of the crustal thickness that correspond to frames a,d,g of Figure 4 in the paper.
+4. confirm that the solutions shown on the screen match the two png files provided.
+5. copy and modify any of the input files to run other cases shown in the paper, and use sybil
+   in interactive mode to examine other aspects of the solutions.
+
+Before step 1 above, within this directory make the following two sub-directories using: 
+mkdir FD.sols ; mkdir FD.out
+to receive basil output files, and use the basil and sybil commands within this directory.
+The files INn?A? are referred to as the basil input files, and the numbers in the name 
+reference the specific values of parameters n and Ar as defined in the paper.
+The input file specifies parameter values, program settings, and boundary conditions used
+in a calculation.
+
+These relatively simple calculations use a regular triangular mesh in a square domain.
+The mesh is advected with the solution and is progressively deformed, so the integration in
+time is intrinsically limited by the deformation of the triangles.  The deformation is fairly
+extreme in the case n=10 Ar=0 and it was necessary to tweak the mesh settings NX and NY to get the 
+calculation as far as the target time of t = 0.24 for this case. With Ar > 0 for the calculations
+in Fig 4, it was possible to run the 3 calculations to the target time of t = 0.5 because
+the gravitational forces acting on thickened crust inhibits the extreme mesh deformation
+near the corner of the indenter.  The deformed triangular mesh at the end of the n3A1 and 
+n10A0 calculations is shown in the two png files.
+
+basil is capable of remeshing during a calculation but remeshing was not used in these examples.
+An example of how to run a calculat with remeshing will be provided in another example directory.
+
+The two (initially empty) directories FD.sols and FD.out are used to accept basil output.  The output
+that comes to the screen provides only a summary of the calculation; its main purpose is to provide
+confirmation of exactly what was done in a basil calculation.
+
+The complete solution for a basil calculation is located in FD.sols using the same name as the input
+file in this directory.  The solution is stored in binary form produced by fortran unformatted write.
+Full solutions at selected time levels are saved based on the TSAVe parameter defined in the input file.
+The principal method of extracting specific data relies on sybil (screen output) or sybilps (postscript)
+to produce graphical output or ordered lists of formatted numbers for specific aspects of the solution
+that can be used for example in a gmt script.
+
+Basil calculations and output variables are all in dimensionless form.  Refer to the 
+paper for a summary of how the scaling parameters for key variables are specified or determined.
+
+In case of errors / problems that can be pinned on basil or sybil, we may be able to advise or fix, 
+but if you want to run these calculations on Windows or Mac we might need your advice on how to get 
+sybil working, as we are specifially set up for running on linux and neither MacOS nor Windows seem
+particularly well adapted to work with the X windows environment.  There is also a known issue with
+postscript produced by sybilps not properly displaying colors on MacOS and we would be interested to 
+understand why that is.  The workaround is to convert the ps to a pdf using ps2pdf.
+
+

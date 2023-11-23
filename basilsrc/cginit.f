@@ -7,7 +7,7 @@ C*--------------------------------------------------------------------
 C
       SUBROUTINE CNVERG(ICONV,XNEW,XOLD,DIF,RMSU,RMSV,RMSP,
      :                  KFIN,IT,NCOMP,EX,EY,WFIT,NROWS,
-     :                  NUP,NN,NFP,IFLT,KSTEP,ITSTOP,LSC,LUW)
+     :                  NUP,NN,NFP,IFLT,KSTEP,ITSTOP,LSC,LUW,IVERB)
 C
 C    Tests convergence by comparing the old and new solutions
 C    at each iteration.  The maximum change is compared against
@@ -81,7 +81,7 @@ C
 C    reduce step size if convergence stalled
 C
       DIFX=DSQRT(DIFU*DIFU+DIFV*DIFV)
-      IF((IT.GT.1).AND.(DIFX.GT.DIFXP))THEN
+      IF((IT.GT.1).AND.(DIFX.GT.DIFXP).AND.(IVERB.NE.0))THEN
         WFITD=0.5*WFIT
         WRITE(LSC,10020)WFITD
 10020   FORMAT('non-monotonic convergence, check AC, WFIT = ',F5.3)
@@ -178,11 +178,13 @@ C
 C
 C    ouput convergence data
 C
-      CALL REPORTCV(LSC,IFLT,NCOMP,IT,KFIN,UOLD,UNEW,RMSU,VOLD,VNEW,
-     :               RMSV,STROLD,STRNEW,RMSSTR,POLD,PNEW,RMSP)
-C     IF((KSTEP.EQ.0).OR.(ICONV.EQ.1).OR.(IT.EQ.ITSTOP))
-      CALL REPORTCV(LUW,IFLT,NCOMP,IT,KFIN,UOLD,UNEW,RMSU,VOLD,VNEW,
-     :               RMSV,STROLD,STRNEW,RMSSTR,POLD,PNEW,RMSP)
+      IF((KSTEP.EQ.0).OR.(ICONV.EQ.1).OR.
+     :   (IT.EQ.ITSTOP).OR.(IVERB.NE.0))THEN
+        CALL REPORTCV(LSC,IFLT,NCOMP,IT,KFIN,UOLD,UNEW,RMSU,VOLD,VNEW,
+     :                 RMSV,STROLD,STRNEW,RMSSTR,POLD,PNEW,RMSP)
+        CALL REPORTCV(LUW,IFLT,NCOMP,IT,KFIN,UOLD,UNEW,RMSU,VOLD,VNEW,
+     :                 RMSV,STROLD,STRNEW,RMSSTR,POLD,PNEW,RMSP)
+      ENDIF
       RETURN
       END
 C
@@ -289,6 +291,7 @@ C       *  4       variable           variable
 C
 C     Assemble the STK2 and STK3 matrices which deal with the fault bc's
 C
+      IERR=0
       BIG=RLV(IBIG)
       GAMMAD=RLV(IGAMMA)
       TREFD=RLV(ITREF)
@@ -343,6 +346,7 @@ C
       IF(IT.GT.INTV(IITSTOP)) THEN
         IERR = 1
         WRITE(LUW,10100)INTV(IITSTOP)
+        WRITE(LSC,10100)INTV(IITSTOP)
 10100   FORMAT('Allowed non-linear interations exceeded: ITSTOP =',I6)
         GO TO 300
       END IF
@@ -364,7 +368,10 @@ C
      :                VISCMIN,VISCMAX,ED2IMIN,ED2IMAX,
      :                THDIMIN,THDIMAX,NUP,NE,NROWS,
      :                LUW,LSC,IERR)
-        IF (IERR.NE.0) GO TO 300
+        IF (IERR.NE.0)THEN
+          WRITE(*,*)'Problem in initial viscosity evaluation'
+          GO TO 300
+        ENDIF
       ENDIF
 C     WRITE(*,*)'VISN after VISK'
 C     CALL DMATPP(VISN,7*NE,LUW)
@@ -377,7 +384,10 @@ C
      :           EX,EY,PWTS,LEM,NOR,IBC,IBCTYP,PNI,PLI,
      :           QBND,VISN,NUP,NN,NE,
      :           NBP,IERR)
-      IF (IERR.NE.0) GO TO 300
+      IF(IERR.NE.0)THEN
+        WRITE(*,*)'Problem in matrix assembly'
+        GO TO 300
+      ENDIF
 C
 C     put the load vector into XLOAD and add boundary conditions
 C
@@ -398,7 +408,10 @@ C
      :            IK,IK2,IK4,NKP,NK2P,NK4P,KBWP,K2BWP,K4BWP,
      :            NUP,NN,NROWS,NFP,
      :            INTV(IIFLT),NITER,LUW,LSC,IVERB,IERR)
-      IF(IERR.NE.0)GO TO 300
+      IF(IERR.NE.0)THEN
+        WRITE(*,*)'Problem in convergence'
+        GO TO 300
+      ENDIF
 C     WRITE(*,*)'XLOAD after CONJGR, NUP =',NUP
 C     CALL DMATPP(XLOAD,NUP,LUW)
 C
@@ -406,8 +419,8 @@ C     Test convergence if non-linear. Copy solution from XLOAD to XWRK
 C
       CALL CNVERG(JCONV,XLOAD,XWRK,RLV(IACNL),RMSU,RMSV,RMSP,
      :            KFIN,IT,INTV(INCOMP),EX,EY,RLV(IWFIT),
-     :            NROWS,NUP,NN,NFP,
-     :            INTV(IIFLT),INTV(IKSTEP),INTV(IITSTOP),LSC,LUW)
+     :            NROWS,NUP,NN,NFP,INTV(IIFLT),
+     :            INTV(IKSTEP),INTV(IITSTOP),LSC,LUW,IVERB)
       DO I=1,NROWS
         XWRK(I)=XLOAD(I)
       ENDDO
@@ -427,7 +440,10 @@ C
      :            VISCMIN,VISCMAX,ED2IMIN,ED2IMAX,
      :            THDIMIN,THDIMAX,NUP,NE,NROWS,
      :            LUW,LSC,IERR)
-      IF (IERR.NE.0)GO TO 300
+      IF (IERR.NE.0)THEN
+        WRITE(*,*)'Problem in final viscosity evaluation'
+        GO TO 300
+      ENDIF
 C
 C     CALL INTSTR(EX,EY,NOR,NUP,LEM,NE,RLV(ISE),
 C    :            VHB,XWRK,INTV(IIVV),INTV(INROWS),NFP,
@@ -448,7 +464,6 @@ C
       DO J=1,NROWS
         UVP(J)=XWRK(J)
       ENDDO
-C     WRITE(*,*)'Exiting CGRUN'
 C
 C    print viscosity array if required
 C
@@ -1276,6 +1291,8 @@ C
         IF (TRIA.LT.0.D0) THEN
           IERR = 2
           WRITE(LUW,11000)LK1,EX(LK1),EY(LK1),EX(LK2),EY(LK2),
+     :                      EX(LK3),EY(LK3)
+          WRITE(LSC,11000)LK1,EX(LK1),EY(LK1),EX(LK2),EY(LK2),
      :                      EX(LK3),EY(LK3)
           RETURN
         ENDIF
