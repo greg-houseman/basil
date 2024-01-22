@@ -13,7 +13,7 @@ void cntour_(float*, float*, int*, int*, int*, int*, int*, int*, int*,
              int*, int*, int*, float*, float*, float*, float*, float*,
              float*, float*, float*, float*);
 int  contour(int*, float*, int**, float**, float*, int*, int, float*,
-             float*, char*, int*);
+             float*, char*, int*, int*);
 void createcolormap_(int*, int*, int*, int*, int*, int*, int*, int*);
 int  create_xy_plot(FILE*, char*);
 int  create_arrow_plot(FILE*, char*);

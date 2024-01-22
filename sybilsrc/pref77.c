@@ -392,7 +392,8 @@ int plot_velocity(int* int_vars, float* fl_vars, int** arraysi, float** arraysf,
             verbose = Settings.verbose;
 /* if verbose dataprint arraysf[SNTRP] */
             err = contour(int_vars,fl_vars,arraysi,arraysf,pwindo,mesh,
-                    plot_descrip,cntr_vals,profile_vals,name,current_pen);
+                    plot_descrip,cntr_vals,profile_vals,name,current_pen,
+                    &Settings.verbose);
         }
         if (plot_type==PRFL1D) {
             namelen = strlen(name);
@@ -858,7 +859,8 @@ int plot_strain(int* int_vars, float* fl_vars, int** arraysi, float** arraysf,
     }
     if (plot_type==CNTRS) {
         err = contour(int_vars,fl_vars,arraysi,arraysf,pwindo,mesh,
-                    plot_descrip,cntr_vals,profile_vals,label,current_pen);
+                    plot_descrip,cntr_vals,profile_vals,label,current_pen,
+                    &Settings.verbose);
     }
     if (plot_type==ARROWS) {
         plot_arrows(opt,label,arraysf,arraysi,fl_vars,int_vars,pwindo,mesh,
@@ -923,7 +925,8 @@ int plot_density(int* int_vars, float* fl_vars, int** arraysi, float** arraysf,
 //	    npts2=mesh[NY3];
         verbose = Settings.verbose;
         err = contour(int_vars,fl_vars,arraysi,arraysf,pwindo,mesh,
-                          plot_descrip,cntr_vals,profile_vals,name,current_pen);
+                          plot_descrip,cntr_vals,profile_vals,name,current_pen,
+                          &Settings.verbose);
     }
     if (plot_type==PRFL1D) {
         npts1=profile_vals[NUM_PTS] = Settings.plot_opts.profile_pts;
@@ -1032,8 +1035,9 @@ int plot_layer(int* int_vars, float* fl_vars, int** arraysi, float** arraysf,
      * Gravitational potential energy (topo=GRAVPE);
      * elevation (topo=TOPOG)
      */
-    fprintf(stdout,"in plot_layer, BDEPSC = %f, HLENSC = %f, RISOST = %f, REFLEV = %f\n",
-                         fl_vars[BDEPSC],fl_vars[HLENSC],fl_vars[RISOST],fl_vars[REFLEV]);
+
+//  fprintf(stdout,"in plot_layer, BDEPSC = %f, HLENSC = %f, RISOST = %f, REFLEV = %f\n",
+//                       fl_vars[BDEPSC],fl_vars[HLENSC],fl_vars[RISOST],fl_vars[REFLEV]);
 
 /*   the following segment used to take account of convective thinning - needs rethink and testing
 
@@ -1141,7 +1145,8 @@ int plot_layer(int* int_vars, float* fl_vars, int** arraysi, float** arraysf,
 
     if (plot_type==CNTRS) {
         err = contour(int_vars,fl_vars,arraysi,arraysf,pwindo,mesh,
-                plot_descrip,cntr_vals,profile_vals,name,current_pen);
+                plot_descrip,cntr_vals,profile_vals,name,current_pen,
+                &Settings.verbose);
     }
     else if (plot_type==PRFL1D) {
         err = Profile(arraysf[SNTRP],arraysi[IHELP],npts1,profile_vals,
@@ -1208,7 +1213,8 @@ int plot_deformation(int* int_vars, float* fl_vars, int** arraysi, float** array
             &mesh[NY2],&mesh[NY3]
             );
         err = contour(int_vars,fl_vars,arraysi,arraysf,pwindo,mesh,
-                plot_descrip,cntr_vals,profile_vals,name,current_pen);
+                plot_descrip,cntr_vals,profile_vals,name,current_pen,
+                &Settings.verbose);
     }
     if (!err) Save_plot_data( cntr_vals,NULL );
     if (Settings.plot_opts.dble) {
@@ -1381,27 +1387,26 @@ int profile_2D( char* name, int ydir, float** arraysf, int** arraysi,
 }
 
 int contour(int_vars,fl_vars,arraysi,arraysf,pwindo,mesh,
-                plot_descrip,cntr_vals,prfl_vals,label,current_pen)
+            plot_descrip,cntr_vals,prfl_vals,label,current_pen,
+            verbose)
 int *int_vars, **arraysi;
 float *fl_vars, **arraysf;
 float *pwindo;
 int *mesh, plot_descrip;
 float *cntr_vals, *prfl_vals;
 char *label;
-int *current_pen;
+int *current_pen, *verbose;
 {
  /* char number[MAX_NUM_LEN];  */
     char dfltlabels[2][MAXNAME];
-    int verbose=0;
     int old_pen,format,len;
     float hmesh,vmesh,xref,yref,sumint;
     float *wkarea,xlevel,ylevel,barwdth,barlen,con[3];
     float vmin,vmax,zcmin,zcmax,interval;
     int m1,n1,nnx,nny,startcol,endcol;
     int num_cntrs,labels;
-//  int meshnum=1;
     int rangecol, orient_vert=1, mpe=1;
-    int err=0;
+    int err=0,verbound=0;     // verbound = verbose flag for boundary
 
     if (arraysf[CNTRP]==NULL)
         if ((arraysf[CNTRP]=(float *)malloc(mesh[NP3]*sizeof(float)))==NULL)
@@ -1531,7 +1536,7 @@ int *current_pen;
                         &pwindo[XCMIN],&pwindo[XCMAX],
                         &pwindo[YCMIN],&pwindo[YCMAX],
                         &vmin,&vmax,&Settings.zoom,
-			&int_vars[NCOMP],&xref,&yref,&verbose );
+			&int_vars[NCOMP],&xref,&yref,&verbound);
         if ((plot_descrip&SHADE) && Settings.plot_opts.colour_bar!=CB_NONE) {
             markcolourbar_( &cntr_vals[CNTR_MIN_U],&cntr_vals[CNTR_MAX_U],
                         &num_cntrs,&cntr_vals[CNTR_STEP_U],
@@ -1553,10 +1558,10 @@ int *current_pen;
 
     sybflush_();
 
-    if(verbose!=0){
+    if(*verbose!=0){
         err = DataPrintMesh(label,arraysf[SNTRP],arraysi[IHELP],
                             pwindo,mesh[NX3],mesh[NY3],
-                            xref,yref,int_vars[NCOMP],verbose);
+                            xref,yref,int_vars[NCOMP],*verbose);
     }
     return(err);
 }
@@ -2101,15 +2106,13 @@ int DataPrintMesh(char *label,float *data,int *flags,float *pwindo,
 //  len = strlen(fname);
     snprintf(header1,SYB_FILENAME_MAX+12,"%s record %02d\n",
                      fname,Plot_info.inp_file->rec_curr);
-    snprintf(header2,MAX_LABEL_LEN,"%s\t%s\t%s\n",
+    snprintf(header2,MAX_LABEL_LEN,"     %s         %s     %s\n",
                                           "X","Y",label);    
     snprintf(datafile,SYB_FILENAME_MAX,"%s.%s","sybil",label);
-    fprintf(stdout,"%s %s to %s; columns: %s\n",
+    printf("%s %s to %s; columns: %s\n",
                    "Writing interpolated values of",label,datafile,header2);
     if (verbose==2) fp = stdout;
     else if ((fp=fopen(datafile,"w"))==NULL) err=OPEN_ERR;
-    printf("writing from DataPrintMesh: %s\n",label);
-    fprintf(fp,"writing from DataPrintMesh: %s\n",label);
     if (!err) {
         fputs(header1,fp);
         fputs(header2,fp);
@@ -2117,11 +2120,11 @@ int DataPrintMesh(char *label,float *data,int *flags,float *pwindo,
         ytmp0=pwindo[YCMIN];
         xinc=(pwindo[XCMAX]-xtmp0)/(float)(nx3-3);
         yinc=(pwindo[YCMAX]-ytmp0)/(float)(ny3-3);
-        for (j=0; j<ny3; j++) {
-            ybp=ytmp0+yinc*j;
+        for (j=1; j<(ny3-1); j++) {
+            ybp=ytmp0+yinc*(j-1);
             ytmp=ybp;
-            for (i=0; i<nx3; i++) {
-                xtmp=xtmp0+xinc*i;
+            for (i=1; i<(nx3-1); i++) {
+                xtmp=xtmp0+xinc*(i-1);
                 ij= j*nx3+i;
                 if (flags[ij]!=0) {
                     if(ncomp==-1){

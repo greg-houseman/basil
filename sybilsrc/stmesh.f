@@ -56,32 +56,35 @@ C       PSUM = 0
 C        CALL PAVG(PSUM,EX,EY,UVP,NN,NUP,NFP,NUVP)
 C
 C   Output the interpolated values for scalar plot; for arrow plot
-C   output is in ARWTWO.
+C   output is in ARWTWO.  The functionality of the following block
+C   of code is moved to routine contour in pref77.c in order that
+C   one routine handles different output arrays in a consistent
+C   manner.   This block should be deleted if no problems emerge
 C
-        IF((IVERBOSE.NE.0).AND.(IPLOT.NE.4))THEN
-          FNAME='sybil.'//LABEL(1:LEN)
-          WRITE(6,10002)LABEL(1:LEN),FNAME,LABEL(1:LEN)
-          OPEN(10,FILE=FNAME)
-          HSX=(XCMAX-XCMIN)/FLOAT(NX3-3)
-          HSY=(YCMAX-YCMIN)/FLOAT(NY3-3)
-          DO 111 J=1,NY3
-            YBP=YCMIN+HSY*FLOAT(J-2)
-            Y=YBP
-            DO 112 I=1,NX3
-              IJ=(J-1)*NX3+I
-              X=XCMIN+HSX*FLOAT(I-2)
-              IF(IHELP(IJ).NE.0)THEN
-                IF(INTV(INCOMP).EQ.-1)THEN
-                  Y=YBP
-                  CALL PROJECTDEG(X,Y,RLV(IXREFM),RLV(IYREFM),1,
-     :                         INTV(INCOMP),IERR)
-                ENDIF
-                WRITE(10,10003)X,Y,SNTRP(IJ)
-              ENDIF
-  112       CONTINUE
-  111     CONTINUE
-          CLOSE(10)
-        ENDIF
+C       IF((IVERBOSE.NE.0).AND.(IPLOT.NE.4))THEN
+C         FNAME='sybil.'//LABEL(1:LEN)
+C         WRITE(6,10002)LABEL(1:LEN),FNAME,LABEL(1:LEN)
+C         OPEN(10,FILE=FNAME)
+C         HSX=(XCMAX-XCMIN)/FLOAT(NX3-3)
+C         HSY=(YCMAX-YCMIN)/FLOAT(NY3-3)
+C         DO 111 J=1,NY3
+C           YBP=YCMIN+HSY*FLOAT(J-2)
+C           Y=YBP
+C           DO 112 I=1,NX3
+C             IJ=(J-1)*NX3+I
+C             X=XCMIN+HSX*FLOAT(I-2)
+C             IF(IHELP(IJ).NE.0)THEN
+C               IF(INTV(INCOMP).EQ.-1)THEN
+C                 Y=YBP
+C                 CALL PROJECTDEG(X,Y,RLV(IXREFM),RLV(IYREFM),1,
+C    :                         INTV(INCOMP),IERR)
+C               ENDIF
+C               WRITE(10,10003)X,Y,SNTRP(IJ)
+C             ENDIF
+C 112       CONTINUE
+C 111     CONTINUE
+C         CLOSE(10)
+C       ENDIF
 C
 C        Profile 1_D; only find values on a specific line
 C
