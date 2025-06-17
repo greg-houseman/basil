@@ -133,19 +133,17 @@ int plot_mesh(int option, int* int_vars, float* fl_vars, int** arraysi,
        verbose = Settings.verbose;
     }
     else if (option==INTLBNDRY) {
-        verbose=0;
-/*	fprintf(stdout,"calling plseg_, NSEG = %i\n",int_vars[NSEG]); */
+        verbose = Settings.verbose;
+//      fprintf(stdout,"calling plseg_, NSEG = %i\n",int_vars[NSEG]);
         plseg_(&option,&int_vars[NUP], &int_vars[NBP], &int_vars[NSEG],
                         arraysf[EX],arraysf[EY],arraysi[NOR],arraysi[IBC],
                         arraysi[IBCTYP],arraysi[ISEG],&rangecol,
 			&pwindo[XCMIN],&pwindo[XCMAX],
 			&pwindo[YCMIN],&pwindo[YCMAX],
 			&int_vars[NCOMP],&xref,&yref,&verbose );
-        verbose = Settings.verbose;
     }
     else if ((option!=INTBND && option!=INTBNDDBL)) {
-    
-        verbose=0;
+        verbose = Settings.verbose;
         plmesh_(&option,&int_vars[NE],&int_vars[NN],&int_vars[NUP],
                         &int_vars[NBP],arraysf[EX],arraysf[EY],
                         arraysi[LEM],arraysi[NOR],arraysi[IBC],
@@ -156,7 +154,6 @@ int plot_mesh(int option, int* int_vars, float* fl_vars, int** arraysi,
                         &pwindo[YCMIN],&pwindo[YCMAX],
                         &vmin,&vmax,&Settings.zoom,
 			&int_vars[NCOMP],&xref,&yref,&verbose );
-        verbose = Settings.verbose;
         if (option==VISCMSH||option==VISCDBL||option==SEMSH||option==SEDBL){
             /*
              * draw colourbar for vmin->vmax
@@ -392,7 +389,8 @@ int plot_velocity(int* int_vars, float* fl_vars, int** arraysi, float** arraysf,
             verbose = Settings.verbose;
 /* if verbose dataprint arraysf[SNTRP] */
             err = contour(int_vars,fl_vars,arraysi,arraysf,pwindo,mesh,
-                    plot_descrip,cntr_vals,profile_vals,name,current_pen);
+                    plot_descrip,cntr_vals,profile_vals,name,current_pen,
+                    &Settings.verbose);
         }
         if (plot_type==PRFL1D) {
             namelen = strlen(name);
@@ -858,7 +856,8 @@ int plot_strain(int* int_vars, float* fl_vars, int** arraysi, float** arraysf,
     }
     if (plot_type==CNTRS) {
         err = contour(int_vars,fl_vars,arraysi,arraysf,pwindo,mesh,
-                    plot_descrip,cntr_vals,profile_vals,label,current_pen);
+                    plot_descrip,cntr_vals,profile_vals,label,current_pen,
+                    &Settings.verbose);
     }
     if (plot_type==ARROWS) {
         plot_arrows(opt,label,arraysf,arraysi,fl_vars,int_vars,pwindo,mesh,
@@ -923,7 +922,8 @@ int plot_density(int* int_vars, float* fl_vars, int** arraysi, float** arraysf,
 //	    npts2=mesh[NY3];
         verbose = Settings.verbose;
         err = contour(int_vars,fl_vars,arraysi,arraysf,pwindo,mesh,
-                          plot_descrip,cntr_vals,profile_vals,name,current_pen);
+                          plot_descrip,cntr_vals,profile_vals,name,current_pen,
+                          &Settings.verbose);
     }
     if (plot_type==PRFL1D) {
         npts1=profile_vals[NUM_PTS] = Settings.plot_opts.profile_pts;
@@ -1032,8 +1032,9 @@ int plot_layer(int* int_vars, float* fl_vars, int** arraysi, float** arraysf,
      * Gravitational potential energy (topo=GRAVPE);
      * elevation (topo=TOPOG)
      */
-    fprintf(stdout,"in plot_layer, BDEPSC = %f, HLENSC = %f, RISOST = %f, REFLEV = %f\n",
-                         fl_vars[BDEPSC],fl_vars[HLENSC],fl_vars[RISOST],fl_vars[REFLEV]);
+
+//  fprintf(stdout,"in plot_layer, BDEPSC = %f, HLENSC = %f, RISOST = %f, REFLEV = %f\n",
+//                       fl_vars[BDEPSC],fl_vars[HLENSC],fl_vars[RISOST],fl_vars[REFLEV]);
 
 /*   the following segment used to take account of convective thinning - needs rethink and testing
 
@@ -1110,38 +1111,42 @@ int plot_layer(int* int_vars, float* fl_vars, int** arraysi, float** arraysf,
 /*  at this stage the array to be plotted is still in the form of log(thickness) */
 
 //  thickm=100.0;         /* nominal lithosphere thickness in km */
-    scale_factor = fl_vars[HLENSC]*fl_vars[BDEPSC];
 
-    if(topo==THICKNESS) {
+    if(int_vars[ITOPO] != 2){      // GPE unscaled for now
+      scale_factor = fl_vars[HLENSC]*fl_vars[BDEPSC];
+
+      if(topo==THICKNESS) {
 /*    for units of layer thickness, for km uncomment the following line */
 /*    scale_factor=scale_factor*thickm;   */
-      zero_shift = 0.0;
-    }
-    else if (topo==TOPOG) {
+        zero_shift = 0.0;
+      }
+      else if (topo==TOPOG) {
 /*    for units in km, assumes lithosphere thickness = 100 km (included in RISOST factor) */
 /*    in current state, RISOST = (rhom/(rhmo-rhoc))/thickm;  and REFLEV in m;  These should 
-      be later changed for self-consistency    */
-      scale_factor=scale_factor/fl_vars[RISOST];
-      zero_shift=0.001*fl_vars[REFLEV] - fl_vars[BDEPSC]/fl_vars[RISOST];
-    }
+      be later changed for self-consistency : rhom = 3330 and rhoc = 2800 gives RISOST = 0.06283   */
+        scale_factor=scale_factor/fl_vars[RISOST];
+        zero_shift=0.001*fl_vars[REFLEV] - fl_vars[BDEPSC]/fl_vars[RISOST];
+      }
 /*    GRAVPE is proportional to crustal thickness squared  */
-    else if (topo==GRAVPE) {
+      else if (topo==GRAVPE) {
         for (i=0; i < npts1*npts2; i++) {
             arraysf[SNTRP][i] = 2.0*arraysf[SNTRP][i];
         }
         scale_factor = 0.5*fl_vars[ARGANP]*fl_vars[BDEPSC]*fl_vars[BDEPSC]*
                        (pow(fl_vars[HLENSC],(-fl_vars[SE])));
         zero_shift = -scale_factor/(fl_vars[HLENSC]*fl_vars[HLENSC]);
+      }
 /*   If convective thinning is required, need to replace ARGANP with BRGANP
      according to IELFIX: not implemented yet    */
-    }
 
 /*  now convert interpolated array to linear scale with appropriate units  */
-    snorm_(arraysf[SNTRP],&npts1,&npts2,&scale_factor,&zero_shift);
+      snorm_(arraysf[SNTRP],&npts1,&npts2,&scale_factor,&zero_shift);
+    }
 
     if (plot_type==CNTRS) {
         err = contour(int_vars,fl_vars,arraysi,arraysf,pwindo,mesh,
-                plot_descrip,cntr_vals,profile_vals,name,current_pen);
+                plot_descrip,cntr_vals,profile_vals,name,current_pen,
+                &Settings.verbose);
     }
     else if (plot_type==PRFL1D) {
         err = Profile(arraysf[SNTRP],arraysi[IHELP],npts1,profile_vals,
@@ -1208,7 +1213,8 @@ int plot_deformation(int* int_vars, float* fl_vars, int** arraysi, float** array
             &mesh[NY2],&mesh[NY3]
             );
         err = contour(int_vars,fl_vars,arraysi,arraysf,pwindo,mesh,
-                plot_descrip,cntr_vals,profile_vals,name,current_pen);
+                plot_descrip,cntr_vals,profile_vals,name,current_pen,
+                &Settings.verbose);
     }
     if (!err) Save_plot_data( cntr_vals,NULL );
     if (Settings.plot_opts.dble) {
@@ -1270,6 +1276,9 @@ int *current_pen,*colours;
             );
     verbose = Settings.verbose;
     if (verbose!=0) {
+        printf("interpolated values of %s written to sybil.%s in 6 columns\n",
+	       label,label);
+//      printf("long  lat  s1  s2  s3  theta\n");
         err = DataPrintArrow(label,arraysf[CNTRP],arraysf[DNTRP],
                              arraysf[SNTRP], arraysf[BNTRP],
                              m1,mesh[NX2],mp,n1,mesh[NY2],np,mesh[NX3],
@@ -1381,27 +1390,26 @@ int profile_2D( char* name, int ydir, float** arraysf, int** arraysi,
 }
 
 int contour(int_vars,fl_vars,arraysi,arraysf,pwindo,mesh,
-                plot_descrip,cntr_vals,prfl_vals,label,current_pen)
+            plot_descrip,cntr_vals,prfl_vals,label,current_pen,
+            verbose)
 int *int_vars, **arraysi;
 float *fl_vars, **arraysf;
 float *pwindo;
 int *mesh, plot_descrip;
 float *cntr_vals, *prfl_vals;
 char *label;
-int *current_pen;
+int *current_pen, *verbose;
 {
  /* char number[MAX_NUM_LEN];  */
     char dfltlabels[2][MAXNAME];
-    int verbose=0;
     int old_pen,format,len;
     float hmesh,vmesh,xref,yref,sumint;
     float *wkarea,xlevel,ylevel,barwdth,barlen,con[3];
     float vmin,vmax,zcmin,zcmax,interval;
     int m1,n1,nnx,nny,startcol,endcol;
     int num_cntrs,labels;
-//  int meshnum=1;
     int rangecol, orient_vert=1, mpe=1;
-    int err=0;
+    int err=0,verbound=0;     // verbound = verbose flag for boundary
 
     if (arraysf[CNTRP]==NULL)
         if ((arraysf[CNTRP]=(float *)malloc(mesh[NP3]*sizeof(float)))==NULL)
@@ -1439,27 +1447,19 @@ int *current_pen;
     cntr_vals[CNTR_STEP]=interval;
     if (cntr_vals[CNTR_MIN]*cntr_vals[CNTR_MAX] <= 0)cntr_vals[CNTR_LVL] = 0.0;
     else cntr_vals[CNTR_LVL] = ((int) (cntr_vals[CNTR_MIN]/interval))* interval;
-
-  /*    cntr_vals[CNTR_STEP]=Calc_Step(cntr_vals[CNTR_MIN],
-                                cntr_vals[CNTR_MAX], cntr_vals[NUM_CNTRS]);  
-        cntr_vals[CNTR_LVL]=Calc_Level(cntr_vals[CNTR_MIN],
-                                cntr_vals[CNTR_MAX], cntr_vals[CNTR_STEP]); */
-
     if (cntr_vals[CNTR_MIN_U]==0.0 && cntr_vals[CNTR_MAX_U]==0.0) {
         cntr_vals[CNTR_MIN_U] = cntr_vals[CNTR_MIN];
         cntr_vals[CNTR_MAX_U] = cntr_vals[CNTR_MAX];
         cntr_vals[CNTR_LVL_U] = cntr_vals[CNTR_LVL];
     }
     if (cntr_vals[CNTR_STEP_U]==0.0) cntr_vals[CNTR_STEP_U] = cntr_vals[CNTR_STEP];
-/*
-    strncpy(&dfltlabels[0][0],label,MAXNAME);
-    formatnumber_(number,&cntr_vals[CNTR_STEP],&format);
-    strncpy(&dfltlabels[1][0],number,MAXNAME);
-*/
-/*     allow user to adjust values or cancel 
-       The variables that end with _U (e.g CNTR_MIN_U) are confirmed
-       by GetUserVals, then used below. The values without _U are just
-       the recommendation for the plot, chosen by ticset */
+
+/*     allow user to adjust values or cancel. The variables that end with _U 
+       (e.g CNTR_MIN_U) are confirmed by GetUserVals, then used below. The values 
+       without _U are just the recommendation for the plot, chosen by ticset.
+       
+       If the min and max values are swapped at this stage, the colour-scale
+       will be flipped ....*/
 
     if (GetUserVals( cntr_vals,CNTRVALS,0,
                     NULL, (char*) dfltlabels )==USER_CANCEL) return(USER_CANCEL);
@@ -1478,18 +1478,34 @@ int *current_pen;
          */
         if (Settings.plot_opts.colour_bar!=CB_NONE) {
             if (Settings.plot_opts.colour_bar==CB_HORIZ) orient_vert=0;
-            drawcolourbar_(&startcol,&endcol,
-                &barwdth,&barlen,&xlevel,&ylevel,
-                &pwindo[XCMIN],&pwindo[XCMAX],
-                &pwindo[YCMIN],&pwindo[YCMAX],
-                &orient_vert);
+	    if (cntr_vals[CNTR_MAX_U] > cntr_vals[CNTR_MIN_U]){
+               drawcolourbar_(&startcol,&endcol,
+                   &barwdth,&barlen,&xlevel,&ylevel,
+                   &pwindo[XCMIN],&pwindo[XCMAX],
+                   &pwindo[YCMIN],&pwindo[YCMAX],
+                   &orient_vert);
+	    }
+	    else {
+               drawcolourbar_(&endcol,&startcol,
+                   &barwdth,&barlen,&xlevel,&ylevel,
+                   &pwindo[XCMIN],&pwindo[XCMAX],
+                   &pwindo[YCMIN],&pwindo[YCMAX],
+                   &orient_vert);
+	    }
         /*
          * label max and min on the colour bar
          */
             if (Settings.plot_opts.label)
-                labelcolourbar_(&cntr_vals[CNTR_MIN_U],&cntr_vals[CNTR_MAX_U],
-                       &cntr_vals[CNTR_SCL],&barlen,&xlevel,&ylevel,
-                       &orient_vert);
+	       if (cntr_vals[CNTR_MAX_U] > cntr_vals[CNTR_MIN_U]){
+                  labelcolourbar_(&cntr_vals[CNTR_MIN_U],&cntr_vals[CNTR_MAX_U],
+                         &cntr_vals[CNTR_SCL],&barlen,&xlevel,&ylevel,
+                         &orient_vert);
+	       }
+	       else{
+                  labelcolourbar_(&cntr_vals[CNTR_MAX_U],&cntr_vals[CNTR_MIN_U],
+                         &cntr_vals[CNTR_SCL],&barlen,&xlevel,&ylevel,
+                         &orient_vert);
+	       }
         }
         setlinewidth_(&Settings.linewidth);
     }
@@ -1531,7 +1547,7 @@ int *current_pen;
                         &pwindo[XCMIN],&pwindo[XCMAX],
                         &pwindo[YCMIN],&pwindo[YCMAX],
                         &vmin,&vmax,&Settings.zoom,
-			&int_vars[NCOMP],&xref,&yref,&verbose );
+			&int_vars[NCOMP],&xref,&yref,&verbound);
         if ((plot_descrip&SHADE) && Settings.plot_opts.colour_bar!=CB_NONE) {
             markcolourbar_( &cntr_vals[CNTR_MIN_U],&cntr_vals[CNTR_MAX_U],
                         &num_cntrs,&cntr_vals[CNTR_STEP_U],
@@ -1553,10 +1569,10 @@ int *current_pen;
 
     sybflush_();
 
-    if(verbose!=0){
+    if(*verbose!=0){
         err = DataPrintMesh(label,arraysf[SNTRP],arraysi[IHELP],
                             pwindo,mesh[NX3],mesh[NY3],
-                            xref,yref,int_vars[NCOMP],verbose);
+                            xref,yref,int_vars[NCOMP],*verbose);
     }
     return(err);
 }
@@ -1578,16 +1594,15 @@ int *flags,npts;
     int m1,n1,mps,nps,i_min,i_max,j_min,j_max;
     int verbose,tic,retval,err=0,leng=1;
     float scale_min, scale_max;
-    float line_len,line_min,line_max,ave_lat,ave_lon;
-    float xrng, yrng, xref, yref;
+    float line_len,line_min,line_max,line_tmp,ave_lat,ave_lon;
+    float xrng, yrng, xref, yref, ybase, ytop, shf, scl;
     float *data2;
     float xmin, xmax, ymin, ymax, inc, area, sumint;
     float iv_ticint, iv_min, iv_max, dv_ticint, dv_min, dv_max;
     float scfactor, ticint, ticstart, size ;
-/*  float rtodeg=57.2957795;  */
     float xtmp,ytmp;
-//  float dtmp,xltmp,xinc,yinc,dinc,line_inc;
 
+    verbose = Settings.verbose;
     old_line = *line; old_pen = *current_pen;
 
 /*    XREFM and YREFM usage depends on context */
@@ -1598,46 +1613,51 @@ int *flags,npts;
        yref=0.;
     }
     m1=n1=mps=nps=1;
-    /* find the data max and min */
+// find the data max and min
     rangxy_(data,flags,&npts,&m1,&npts,&mps,&m1,&n1,&nps,
                 &profile_vals[PRFL_MAX],&i_max,&j_max,
                 &profile_vals[PRFL_MIN],&i_min,&j_min,&npts,&sumint);
-    fprintf(stdout,"Profile values for %s:  Min = %f  Max = %f\n",label,
+    fprintf(stdout,"Profile %s range: Min = %f  Max = %f\n",label,
                       profile_vals[PRFL_MIN],profile_vals[PRFL_MAX]);
-
-    /* propose plotting limits and tick interval based on rounded numbers
-        this for dependent variable: dv_min -> dv_max         */
-
-    if (ticstep(profile_vals[PRFL_MIN],profile_vals[PRFL_MAX],
-                     &dv_ticint,&dv_min,&dv_max)) {
-            warning_msg(RANGE_ERR,"tic max = min - not drawing tics"); 
-    }
-    profile_vals[PRFL_MIN] = dv_min;
-    profile_vals[PRFL_MAX] = dv_max;
     if (profile_vals[PRFL_MIN_U]==0.0 && profile_vals[PRFL_MAX_U]==0.0) {
         profile_vals[PRFL_MIN_U] = profile_vals[PRFL_MIN];
         profile_vals[PRFL_MAX_U] = profile_vals[PRFL_MAX];
     }
 
-    /* allow user to adjust values or cancel, then re-scale and 
-       reset ticint etc.  profile_vals[PRFL_MIN_U] and [PRFL_MAX_U]
-       will be the limiting values on the graph axis (user units) */
+//  propose plotting limits and tick interval based on rounded numbers
+//      this for dependent variable: dv_min -> dv_max ticks of dv_ticint
+    if (ticstep(profile_vals[PRFL_MIN],profile_vals[PRFL_MAX],
+                     &dv_ticint,&dv_min,&dv_max)) {
+            warning_msg(RANGE_ERR,"tic max = min - not drawing tics"); 
+    }
 
+ // allow user to adjust scale by (v+shift)*scale; NB: shift before scale !
     retval=GetUserVals( profile_vals,PRFLVALS,0,NULL,NULL );
     if (retval==USER_CANCEL)    return(USER_CANCEL);
     if ((data2=(float *)malloc(npts*sizeof(float)))==NULL)
             return(MALLOC_ERR);
-    for (m1=0; m1<npts; m1++) {
-              data[m1]*=profile_vals[PRFL_SCL];
-              data[m1]+=profile_vals[PRFL_SHFT];
-              }
-    if (ticstep(profile_vals[PRFL_MIN_U],profile_vals[PRFL_MAX_U],
+    scl=profile_vals[PRFL_SCL];
+    shf=profile_vals[PRFL_SHFT];
+    if((shf != 0)||(fabs(scl-1.0) > 1e-5)) {
+      for (m1=0; m1<npts; m1++) {
+         data[m1]+=shf;
+         data[m1]*=scl;
+      }
+      profile_vals[PRFL_MIN]=(profile_vals[PRFL_MIN]+shf)*scl;
+      profile_vals[PRFL_MAX]=(profile_vals[PRFL_MAX]+shf)*scl;
+      printf("Data amended: new = (old + %f) * %f\n",shf,scl);
+    }
+    
+    if (ticstep(profile_vals[PRFL_MIN],profile_vals[PRFL_MAX],
                      &dv_ticint,&dv_min,&dv_max)) {
             warning_msg(RANGE_ERR,"tic max = min - not drawing tics");
     }
-    dv_min=profile_vals[PRFL_MIN_U];
-    dv_max=profile_vals[PRFL_MAX_U];
- /* fprintf(stdout,"dv_min = %f dv_max =%f\n",dv_min,dv_max); */
+    profile_vals[PRFL_MIN] = dv_min;
+    profile_vals[PRFL_MAX] = dv_max;
+    profile_vals[PRFL_MIN_U] = profile_vals[PRFL_MIN];
+    profile_vals[PRFL_MAX_U] = profile_vals[PRFL_MAX];
+//  fprintf(stdout,"Profile values for %s:  Min = %f  Max = %f\n",label,
+//                    profile_vals[PRFL_MIN],profile_vals[PRFL_MAX]);
 
 /* (PRFL_X1, PRFL_Y1) and (PRFL_X2, PRFL_Y2) define the coordinates of profile
     end points in model space, PRFL_MIN_U and PRFL_MAX_U define lower and
@@ -1649,74 +1669,24 @@ int *flags,npts;
                              + (profile_vals[PRFL_Y2]-profile_vals[PRFL_Y1])
                               *(profile_vals[PRFL_Y2]-profile_vals[PRFL_Y1])));
     len = strlen(label);
+//  integrat_(data,flags,&npts,&line_len,&area,label,&len);
     integrattrpz_(data,flags,&npts,&line_len,&area,label,&len);
-    fprintf(stdout,"integrattrpz area %f\n",area);
-    /*
-    integrat_(data,flags,&npts,&line_len,&area,label,&len);
-    fprintf(stdout,"integrat area %f\n",area);
-    */
+    fprintf(stdout,"dv_min = %f dv_max = %f dv_tic = %f integral = %f\n",dv_min,dv_max,dv_ticint,area);
 
-    verbose = Settings.verbose;
-
-/* choose plot orientation depending whether X-range > Y-range in model space 
-   probably choice is ok for vertical or horizontal profile:
-     idir=0: independent variable is plotted horizontal
-     idir=1: independent variable is plotted vertical    
-   same test works for 1D and 2D plots                   */
-
+// plot orientation depends whether X-range > Y-range in model space 
+//   idir=0: independent variable is horizontal
+//   idir=1: independent variable is vertical    
     idir=0;
     xrng=profile_vals[PRFL_X2]-profile_vals[PRFL_X1];
     yrng=profile_vals[PRFL_Y2]-profile_vals[PRFL_Y1];
     if (fabs(xrng) < fabs(yrng)) idir = 1;
-
-/*  to scale x-axis  as for contour plots use this block in next section
-        xmin = pwindo[XCMINREF];
-        xmax = xmin + line_len;
-        ymin = pwindo[UBASE];
-        ymax = pwindo[UTOP];
-        inc = (line_len)/(npts-1);   */
-
-/*  this block for plotting independent variable horizontal  */
-
-    xmin = pwindo[ULEFT];
-    xmax = pwindo[URGHT];
-    scale_min = profile_vals[PRFL_MIN_U];
-    scale_max = profile_vals[PRFL_MAX_U];
-/*    max < min to reverse the axis of the dependent variable */
+// plot the line; dependent variable vertical
+    scale_min=dv_min;
+    scale_max=dv_max;
+//  if max < min reverse the axis of the dependent variable
     if (scale_min>scale_max) dv_ticint = -dv_ticint;
 
-    if(idir==0) {
-        ymin = pwindo[UBASE];
-        ymax = pwindo[UTOP];
-        inc = (xmax-xmin)/(npts-1);
-        for (m1=0,xtmp=xmin; m1<npts; m1++,xtmp+=inc) data2[m1]=xtmp;
-        calcprofil_(data2,data,flags,&npts,
-            &xmin,&xmax,
-            &scale_min,
-            &scale_max,
-            &xmin,&ymin,&xmax,&ymax,&verbose
-            );
-    }
-/* this block for plotting independent variable vertical
-    data and data2 are swapped in the call to calcprofil */
-    else {
-        ymin = pwindo[YCMIN];
-        ymax = pwindo[YCMAX];
-        inc = (ymax-ymin)/(npts-1);
-        for (m1=0,ytmp=ymin; m1<npts; m1++,ytmp+=inc) data2[m1]=ytmp;
-        calcprofil_(data,data2,flags,&npts,
-            &scale_min,&scale_max,&ymin,&ymax,
-            &xmin,&ymin,&xmax,&ymax,&verbose
-            );
-    }
-
-/* at this stage (xmin, ymin) and (xmax, ymax) are corners of plot
-     region in model coordinates          */
-
-/*    independent variable for graph is the coordinate
-      that is changing most across the profile.  For spherical
-      projection, convert distance from radians to degrees */
-
+//  define independent variable limits, convert distance from radians to degrees
     if(idir==0){
        line_min=profile_vals[PRFL_X1];
        line_max=profile_vals[PRFL_X2];
@@ -1737,11 +1707,52 @@ int *flags,npts;
          projectdeg_(&ave_lon,&line_max,&xref,&yref,&leng,&ncomp,&err);
        }
     }
+/*  if(line_min > line_max){
+        line_tmp=line_min;
+	line_min=line_max;
+	line_max=line_tmp;
+    } */
     line_len=line_max-line_min;
+
+//  xmin,xmax,ymin,ymax are the corners of the plot box in plotter coordinates
+//  plot the line; dependent variable vertical
+    if(idir==0) {
+//      xmin = pwindo[ULEFT];      // use available space in X-direction
+//      xmax = pwindo[URGHT];
+        xmin = pwindo[XCMINREF];   // X-direction scale as for contour plots
+        xmax = xmin + line_len;
+        ymin = pwindo[UBASE];
+        ymax = pwindo[UTOP];
+        inc = (xmax-xmin)/(npts-1);
+        for (m1=0,xtmp=xmin; m1<npts; m1++,xtmp+=inc) data2[m1]=xtmp;
+        calcprofil_(data2,data,flags,&npts,
+            &xmin,&xmax,&dv_min,&dv_max,
+            &xmin,&ymin,&xmax,&ymax,&verbose);
+    }
+
+// plot the line; dependent variable horizontal
+    else {
+        xmin = pwindo[ULEFT];      // use available space in X-direction
+        xmax = pwindo[URGHT];
+//      ymin = pwindo[UBASE];      // use available space in Y-direction
+//      ymax = pwindo[UTOP];
+        ymin = pwindo[YCMIN];      // Y-direction scale as contour plots
+        ymax = pwindo[YCMAX];
+	if(profile_vals[PRFL_Y1] > profile_vals[PRFL_Y2]){
+	   ymin=pwindo[YCMAX];
+	   ymax=pwindo[YCMIN];
+	}
+        inc = (ymax-ymin)/(npts-1);
+        for (m1=0,ytmp=ymin; m1<npts; m1++,ytmp+=inc) data2[m1]=ytmp;
+        calcprofil_(data,data2,flags,&npts,
+            &dv_min,&dv_max,&ymin,&ymax,
+            &xmin,&ymin,&xmax,&ymax,&verbose);
+    }
+    ybase=ymin;                // use for axis labels
+    ytop=ymax;
 
 /*  if verbose flag is set, output profile values in (x,y,value,xlabel,distance)
     sets.  If spherical thin sheet, x, y, distance are converted to degrees           */
-
     if(verbose!=0){
         err = DataPrintLine(label,data,profile_vals,line_len,line_min,
                         xref,yref,npts,ncomp,verbose);
@@ -1780,35 +1791,34 @@ int *flags,npts;
 
       if (Settings.plot_opts.label) {
         xtmp = xmin+(xmax-xmin)/2.0;
-        ytmp = ymax+(ymax-ymin)/50.;
+        ytmp = ytop+(ytop-ybase)/50.;
         len=strlen(label);
         x_offset = J_CENTRE; y_offset = J_BASE; mode = 1;
         drawlabel_(&xtmp,&ytmp,&x_offset,&y_offset,&mode, label,&len);
       }
 
-/* tick marks, then label on vertical axis */
-
+// add tick marks and labels on vertical axis
       tic = Settings.plot_opts.ticmark;
-      size = (float)sqrt((double)((ymax-ymin)*(xmax-xmin)))/30.0;
-      if (idir == 0) {    /*   dependent variable in user units  */
-        scale_min = profile_vals[PRFL_MIN_U];
-        scale_max = profile_vals[PRFL_MAX_U];
-        scfactor = (ymax-ymin)/(scale_max-scale_min);
+      size = (float)sqrt((double)(fabs((ymax-ymin)*(xmax-xmin))))/30.0;
+      if (idir == 0) {    //   for dependent variable in user units
+        scfactor = (ymax-ymin)/(dv_max-dv_min);
+	scale_min=dv_min;
+	scale_max=dv_max;
         ticint = dv_ticint*scfactor;  /* convert to plotter units */
-        ticstart = ymin + (dv_min - scale_min)*scfactor;
+	ticstart = ybase;
       }
-      else {           /*  independent variable in model units  */
+      else {           //  for independent variable in user units
         scale_min = line_min;
         scale_max = line_min+line_len;
-        scfactor = (ymax-ymin)/(scale_max-scale_min);
+        scfactor = (ytop-ybase)/(scale_max-scale_min);
         ticstep(scale_min,scale_max,&iv_ticint,&iv_min,&iv_max);
         ticint = iv_ticint*scfactor;  /* convert to plotter units */
-        ticstart = ymin + (iv_min - scale_min)*scfactor;
+        ticstart = ybase + (iv_min - scale_min)*scfactor;
       }
       mode = 0;
-      drawticmarks_(&size,&ymax,&xmin,&ticstart,&ticint,&tic,&mode);
+      drawticmarks_(&size,&ytop,&xmin,&ticstart,&ticint,&tic,&mode);
 
-            /* leave gap next to axis */
+//  add axis labels on vertical axis
     if (Settings.plot_opts.label) {
       xtmp = xmin-(xmax-xmin)/30.0; 
       format     = MAX(fabs((double)scale_min),fabs((double)scale_max))
@@ -1816,10 +1826,12 @@ int *flags,npts;
       formatnumber_(number,&scale_min,&format);
       x_offset = J_RIGHT; y_offset = J_BASE; mode = 1;
       len=strlen(number); if (len > (MAX_NUM_LEN-1)) len = MAX_NUM_LEN-1;
+//    printf("Profile number V1 = %s ymin = %f y_offset = %d\n",number,ymin,y_offset);
       drawlabel_(&xtmp,&ymin,&x_offset,&y_offset,&mode, number,&len);
       formatnumber_(number,&scale_max,&format);
       x_offset = J_RIGHT; y_offset = J_TOP; mode = 1;
       len=strlen(number); if (len > (MAX_NUM_LEN-1)) len = MAX_NUM_LEN-1;
+//    printf("Profile number V2 = %s ymax = %f y_offset = %d\n",number,ymax,y_offset);
       drawlabel_(&xtmp,&ymax,&x_offset,&y_offset,&mode, number,&len);
       if (idir != 0) {
          ytmp = ymin+(ymax-ymin)/2.0;
@@ -1830,39 +1842,40 @@ int *flags,npts;
       }
     }
 
-        /* tick marks then label on horizontal axis */
-
-    if (idir!=0) {         /*   dependent variable in user units */
-       scale_min = profile_vals[PRFL_MIN_U];
-       scale_max = profile_vals[PRFL_MAX_U];
-       scfactor = (xmax-xmin)/(scale_max-scale_min);
+// add tick marks and labels on horizontal axis
+    if (idir!=0) {   // for dependent variable in user units
+       scfactor=(xmax-xmin)/(dv_max-dv_min);
+       scale_min=dv_min;
+       scale_max=dv_max;
        ticint = dv_ticint*scfactor;  /* convert to plotter units */
-       ticstart = xmin + (dv_min - scale_min)*scfactor;
+       ticstart=xmin;
     }
-    else {           /*   independent variable in model units  */
+    else {           //  for independent variable in user units
        scale_min = line_min;
        scale_max = line_min+line_len;
        ticstep(scale_min,scale_max,&iv_ticint,&iv_min,&iv_max);
        scfactor = (xmax-xmin)/(scale_max-scale_min);
+ //    scfactor = (xmax-xmin)/(dv_max-dv_min);
        ticint = iv_ticint*scfactor;  /* convert to plotter units */
        ticstart = xmin + (iv_min - scale_min)*scfactor;
         }
     mode = 1;
-    drawticmarks_(&size,&xmax,&ymin,&ticstart,&ticint,&tic,&mode);
+    drawticmarks_(&size,&xmax,&ybase,&ticstart,&ticint,&tic,&mode);
 
-            /* leave gap next to axis */
+// add axis labels on horizontal axis
     if (Settings.plot_opts.label) {
-        ytmp = ymin-(ymax-ymin)/30.0;
+//      ytmp = ymin-(ymax-ymin)/30.0;
+        ytmp = ybase-(ytop-ybase)/30.0;
         format     = MAX(fabs((double)scale_min),fabs((double)scale_max))
                           >10.0     ? 60 : 63;
         formatnumber_(number,&scale_min,&format);
- /*     x_offset = J_LEFT; y_offset = J_TOP; mode = 1; */
         x_offset = J_CENTRE; y_offset = J_TOP; mode = 1;
         len=strlen(number); if (len > (MAX_NUM_LEN-1)) len = MAX_NUM_LEN-1;
+//      printf("Profile number H1 = %s xmin = %f x_offset = %d\n",number,xmin,x_offset);
         drawlabel_(&xmin,&ytmp,&x_offset,&y_offset,&mode,number,&len);
         formatnumber_(number,&scale_max,&format);
- /*     x_offset = J_RIGHT; y_offset = J_TOP; mode = 1; */
         len=strlen(number); if (len > (MAX_NUM_LEN-1)) len = MAX_NUM_LEN-1;
+//      printf("Profile number H2 = %s xmax = %f x_offset = %d\n",number,xmax,x_offset);
         drawlabel_(&xmax,&ytmp,&x_offset,&y_offset,&mode,number,&len);
         if (idir == 0) {
           xtmp = xmin+(xmax-xmin)/2.0;
@@ -1966,8 +1979,6 @@ int set_max_cntrs(float* cntr_vals, float value)
        (interval) for variable values that are in the range (min, max) */
 
 int ticstep(float min,float max,float *interval,float* g_min,float* g_max)
-//int ticstep(min,max,interval,g_min,g_max)
-//float min,max,*interval,*g_min,*g_max;
 {
     float p1,stp1,eps=-0.00001;
     int bnd1,bnd2,icnt=0;
@@ -2007,13 +2018,13 @@ int ticstep(float min,float max,float *interval,float* g_min,float* g_max)
     casting to integer truncates, different for (+, -)  
     eps allows round-off, to get ticks on end-points */
 
-    if(min >= 0){ bnd1 =  (int) ((min/p1)*(1.0+eps));}
-    else       { bnd1 = ((int) ((min/p1)*(1.0-eps))) - 1;}
+    if(min >= 0){ bnd1 =  ((min/p1)*(1.0+eps));}
+    else        { bnd1 =  ((min/p1)*(1.0-eps)) - 1;}
     *g_min = bnd1*p1;
-    if(max <= 0){ bnd2 =  (int) ((max/p1)*(1.0-eps)); }
-    else       { bnd2 = ((int) ((max/p1)*(1.0+eps))) + 1;}
+    if(max <= 0){ bnd2 =  ((max/p1)*(1.0-eps));}
+    else        { bnd2 =  ((max/p1)*(1.0+eps)) + 1;}
     *g_max = bnd2*p1;
-/*  fprintf(stdout,"ticstep g_min= %f g_max=%f\n",*g_min,*g_max); */
+//  fprintf(stdout,"ticstep g_min= %f g_max=%f\n",*g_min,*g_max);
 
     return(0);
 }
@@ -2101,15 +2112,13 @@ int DataPrintMesh(char *label,float *data,int *flags,float *pwindo,
 //  len = strlen(fname);
     snprintf(header1,SYB_FILENAME_MAX+12,"%s record %02d\n",
                      fname,Plot_info.inp_file->rec_curr);
-    snprintf(header2,MAX_LABEL_LEN,"%s\t%s\t%s\n",
+    snprintf(header2,MAX_LABEL_LEN,"     %s         %s     %s\n",
                                           "X","Y",label);    
     snprintf(datafile,SYB_FILENAME_MAX,"%s.%s","sybil",label);
-    fprintf(stdout,"%s %s to %s; columns: %s\n",
+    printf("%s %s to %s; columns: %s\n",
                    "Writing interpolated values of",label,datafile,header2);
     if (verbose==2) fp = stdout;
     else if ((fp=fopen(datafile,"w"))==NULL) err=OPEN_ERR;
-    printf("writing from DataPrintMesh: %s\n",label);
-    fprintf(fp,"writing from DataPrintMesh: %s\n",label);
     if (!err) {
         fputs(header1,fp);
         fputs(header2,fp);
@@ -2117,11 +2126,11 @@ int DataPrintMesh(char *label,float *data,int *flags,float *pwindo,
         ytmp0=pwindo[YCMIN];
         xinc=(pwindo[XCMAX]-xtmp0)/(float)(nx3-3);
         yinc=(pwindo[YCMAX]-ytmp0)/(float)(ny3-3);
-        for (j=0; j<ny3; j++) {
-            ybp=ytmp0+yinc*j;
+        for (j=1; j<(ny3-1); j++) {
+            ybp=ytmp0+yinc*(j-1);
             ytmp=ybp;
-            for (i=0; i<nx3; i++) {
-                xtmp=xtmp0+xinc*i;
+            for (i=1; i<(nx3-1); i++) {
+                xtmp=xtmp0+xinc*(i-1);
                 ij= j*nx3+i;
                 if (flags[ij]!=0) {
                     if(ncomp==-1){
@@ -2191,7 +2200,7 @@ int DataPrintArrow(char *label,float *c2t,float *s2t, float *wx,float *wy,
                     if(ncomp==-1){
                         projectdeg_(&xtmp,&ytmp,&xref,&yref,&leng,&ncomp,&err);
                     }
-                    fprintf(fp," %f %f %e %e %e %e\n",
+                    fprintf(fp," %f %f %e %e %e %f\n",
                                     xtmp,ytmp,s1,s2,cc,thetadeg);
                  }
              }

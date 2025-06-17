@@ -245,7 +245,7 @@ C
           END IF  ! IHELP non-zero
         ENDDO     ! on J
       ENDDO       ! on I
-      IF(IVERB.NE.0)WRITE(LUW,10100)XMAX,IM,JM,XMIN,IN,JN
+      IF(IVERB.NE.0)WRITE(*,10100)XMAX,IM,JM,XMIN,IN,JN
 10100 FORMAT(' MAX VALUE OF FUNCTION IS ',G12.5,' AT I =',I6,
      1', J =',I6,'   MIN VALUE IS ',G12.5,' AT I =',I6,', J =',
      2I6,/)

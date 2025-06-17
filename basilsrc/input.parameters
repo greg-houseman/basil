@@ -31,7 +31,8 @@ C
      :            INDXTOPOFILT=17,
      :            INDXSPHERICAL=18,
      :            INDXPERIB=19,
-     :            NUMSETUP = 19 )
+     :            INDXGPE=20,
+     :            NUMSETUP = 20 )
 
       PARAMETER ( INDXSTEPSIZE=1,
      :            INDXSTOP=2,

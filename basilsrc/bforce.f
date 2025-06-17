@@ -917,11 +917,13 @@ C           IERR=1
       RETURN
       END
 C
-      SUBROUTINE RESETSERIES(LEM,NOR,NE,NUP,MEASUR,MSNODE,MSINDX,
-     :                       PTLOC,EX,EY)
+      SUBROUTINE RESETSERIES(LEM,
+C    :                       NOR,
+     :                       NE,NUP,MEASUR,MSNODE,MSINDX,PTLOC,EX,EY)
       INCLUDE 'input.parameters'
       INCLUDE 'limits.parameters'
-      DIMENSION EX(NUP),EY(NUP),LEM(6,NE),NOR(NUP)
+      DIMENSION EX(NUP),EY(NUP),LEM(6,NE)
+C     DIMESNION NOR(NUP)
       DIMENSION MEASUR(MSINDX),PTLOC(3,MSINDX),MSNODE(MSINDX)
       DIMENSION COOL(3)
 
@@ -932,9 +934,12 @@ C
           DO K=1,3
             COOL(K) = PTLOC(K,I)
           END DO
-          LK=NOR(LEM(1,N))
-          LK2=NOR(LEM(2,N))
-          LK3=NOR(LEM(3,N))
+C         LK=NOR(LEM(1,N))
+C         LK2=NOR(LEM(2,N))
+C         LK3=NOR(LEM(3,N))
+          LK=LEM(1,N)
+          LK2=LEM(2,N)
+          LK3=LEM(3,N)
           X1=EX(LK)
           X2=EX(LK2)
           X3=EX(LK3)

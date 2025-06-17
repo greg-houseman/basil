@@ -148,7 +148,7 @@ C
 C  This program sets up the finite element problem for deformation
 C  about a fault embedded in a non-linear viscous medium.
 C
-C  developed by Terence Barr and Greg Houseman
+C  developed by Terence Barr, Greg Houseman and Lynn Evans
 C  based on finite element code originally developed by Greg Houseman
 C    for deformation of a thin viscous sheet
 C
@@ -183,20 +183,22 @@ C
 C    The array sizes are set by the parameters in the following file
 C
       INTERFACE
-        SUBROUTINE REMESH(EX,EY,IBCTYP,IBC,IBNGH,SEGLIM,ANGLIM,
-     :                  PTLOC,ISEG,LEM,NOR,INTV,IVNEW,IFLT,NFP,
+        SUBROUTINE REMESH(EX,EY,IBCTYP,IBC,QBND,SEGLIM,ANGLIM,
+     :                  PTLOC,ISEG,LEM,INTV,IVNEW,IFLT,NFP,
      :                  NFPF3,IFBC1,IFEQV,PDIST,MSNODE,MEASUR,
-     :                  LUW,LSC,IERR)
+     :                  LUW,LSC,IVERB,IERR)
         INCLUDE "indices.parameters"
         INCLUDE "limits.parameters"
         INTEGER INTV(64),IVNEW(64)
         DIMENSION MEASUR(MAXMEAS), MSNODE(MAXMEAS), PTLOC(3,MAXMEAS)
-        REAL, DIMENSION(:), POINTER :: EX, EY
+        REAL, DIMENSION(:), POINTER :: EX,EY,QBND
         INTEGER, DIMENSION(:,:), POINTER :: ISEG, LEM
-        INTEGER, DIMENSION(:), POINTER :: NOR,IBC,IFBC1,IFEQV
-        INTEGER, DIMENSION(:), POINTER :: IBCTYP,IBNGH
+C       INTEGER, DIMENSION(:), POINTER :: NOR
+        INTEGER, DIMENSION(:), POINTER :: IBC,IFBC1,IFEQV
+        INTEGER, DIMENSION(:), POINTER :: IBCTYP
+C       INTEGER, DIMENSION(:), POINTER :: IBNGH
 C       INTEGER, ALLOCATABLE :: IPROTECTED(:)
-        LOGICAL, ALLOCATABLE :: FOUND(:)
+C       LOGICAL, ALLOCATABLE :: FOUND(:)
         END SUBROUTINE REMESH
         SUBROUTINE C_DATA_TO_F(EX,EY,EXTS,EYTS,SSQ,FROT,SSQTS,FROTTS,
      :                   QBND,QLOAD,UVP,UVPTS,DENS,VHB,VOLD,
@@ -293,7 +295,7 @@ C     CHARACTER FILESER*60
       DIMENSION ITIMESTEPORDER(NUMTIME)
       DIMENSION PVALUE(MAXMEAS),SMIN(3),SMAX(3)
       DIMENSION XMIN(2),XMAX(2),YMIN(2),YMAX(2)
-      DIMENSION XYEXIT(4)
+      DIMENSION XYEXIT(4),TANDF(2)
       DIMENSION KORNER(10)
       DIMENSION POLEP(3,MAXPOLE)
 C
@@ -358,10 +360,12 @@ C
       NFPF3=INTV(INFPF3)
       NFP=INTV(INFP)
       IFLT=INTV(IIFLT)
-      IF((IFLT.GT.0).AND.(INTV(IIMSH).EQ.3).AND.(IREAD.EQ.0))THEN
-        CALL FLTINIT(EX,EY,LEM,NOR,IBC,IFBC1,IFBC2,IFEQV,JFBC1,JFBC2,
-     :               INTV(INUP),INTV(INE),NFP,NFPF3,
-     :               INTV(INBP),INTV(INSEG),LUW,LSC,IERROR)
+C     IF((IFLT.GT.0).AND.(INTV(IIMSH).EQ.3).AND.(IREAD.EQ.0))THEN
+      IF((IFLT.GT.0).AND.(INTV(IIMSH).EQ.3))THEN
+        CALL FLTINIT(EX,EY,LEM,IBC,IBCTYP,IFBC1,IFBC2,IFEQV,
+     :               JFBC1,JFBC2,INTV(INUP),INTV(INE),INTV(INFP),
+     :               INTV(INFPF3),INTV(INBP),INTV(INSEG),
+     :               INTV(IIDEFTYP),IVERB,LUW,LSC,IERROR)
         IF (IERROR.NE.0)THEN
           WRITE(LSC,*)'FLTINIT has returned IERROR =',IERROR
           WRITE(LUW,*)'FLTINIT has returned IERROR =',IERROR
@@ -382,16 +386,16 @@ C
      :                  IFLTTIPS,IOFF,ITIMETYPE,IDENMOD,
      :                  IRHEOMOD,MFIXFLAG,NITER,IGRID,NDFORM,
      :                  RHO,TILTDEG,CENTLNG,ITIMESTEPORDER,
-     :                  EX,EY,UVP,LEM,NOR,IBC,IBNGH,IBCTYP,KORNER,
-     :                  QBND,POLEP,IBPOLE,TAPERF,VHB,IMAT,VOLD,
-     :                  SSQ,FROT,DENS,TEMPT,IELFIX,
+     :                  EX,EY,UVP,UVPTS,LEM,NOR,IBC,IBNGH,IBCTYP,
+     :                  KORNER,QBND,TANDF,POLEP,IBPOLE,TAPERF,VHB,
+     :                  IMAT,VOLD,SSQ,FROT,DENS,TEMPT,IELFIX,
      :                  XYEXIT,SHAPELIM,SEGLIM,ANGLIM,
      :                  IFBC1,IFBC2,IFEQV,ISEG,
-     :                  JFBC1,JFBC2,IENDP1,IENDP2,NFPF3,
+     :                  JFBC1,JFBC2,IENDP1,IENDP2,INTV(INFPF3),
      :                  LGEM,EXLG,EYLG,STELPX,STELPY,
      :                  UXLG,UYLG,LGIBC,LGIBCF,
      :                  INTV(INE),INTV(INUP),INTV(INBP),
-     :                  INTV(INMP),INTV(INSEG),IVERB,
+     :                  INTV(INMP),INTV(INSEG),INTV(INROWS),
      :                  GSDUDX,GSDUDY,GSDVDX,GSDVDY,
      :                  INITVEL,REMESHFLAG,NEGTIM,IERROR)
       CLOSE(LBC)
@@ -439,8 +443,8 @@ C
       WRITE(LUW,10115)
       WRITE(LSC,10115)
       CALL PRINTINP(INTV,RLV,IOFF,ITIMETYPE,IDENMOD,IRHEOMOD,
-     :                  MFIXFLAG,NITER,IGRID,NDFORM,NEGTIM,NFPF3,
-     :                  RHO,TILTDEG,TTSV,SHAPELIM,SEGLIM,ANGLIM)
+     :              MFIXFLAG,NITER,IGRID,NDFORM,NEGTIM,INTV(INFPF3),
+     :              RHO,TILTDEG,TTSV,SHAPELIM,SEGLIM,ANGLIM)
 C
 C   ANGLIM assumes radians, input in degrees.  SEGLIM input in
 C   non-d length units, square is used, in radians if NCOMP=-1
@@ -458,22 +462,28 @@ C
       IF(INTV(IIVV).EQ.3)WRITE(LUW,10118)RLV(ISE)
       IF(INTV(IIVV).EQ.4)WRITE(LUW,10119)
 c
-c    OMDOT is the rotation rate of the indenter.  enter OMTOT
-c    the total rotation (in degrees) in 0.5 dtu.
+c    OMDOT / OMTOT obsolete parameters space in RLV could be repurposed
 c
-      OMDOT=RLV(IOMTOT)*3.14159265/(180.0*0.5)
-      IF(OMDOT.NE.0.0)WRITE(LUW,10105)OMDOT
+C     OMDOT=2.0*RLV(IOMTOT)*DTOR
+C     IF(OMDOT.NE.0.0)WRITE(LUW,10105)OMDOT
+C
+      IF(INTV(ITOPO).EQ.2)THEN
+        RLV(IARGANP)=RLV(IARGAN)*(RLV(IHLENSC)**(1.0/RLV(ISE)))
 C
 C    THRESH is used to determine sudden change in Argand number
 C     given in terms of factor*original crustal thickness
-C   [next line already done in input.f - some tidying needed ?]
-      RLV(IARGANP)=RLV(IARGAN)*RLV(IBDEPSC)*RLV(IBDEPSC)*
+C
+      ELSE
+        RLV(IARGANP)=RLV(IARGAN)*RLV(IBDEPSC)*RLV(IBDEPSC)*
      1                      (RLV(IHLENSC)**(2.0+1.0/RLV(ISE)))
-      RLV(IBRGANP)=RLV(IBRGAN)*RLV(IBDEPSC)*RLV(IBDEPSC)*
+        RLV(IBRGANP)=RLV(IBRGAN)*RLV(IBDEPSC)*RLV(IBDEPSC)*
      1                      (RLV(IHLENSC)**(2.0+1.0/RLV(ISE)))
-      IF(RLV(ITHRESH).GT.0.0)THRESHLOG=ALOG(REAL(RLV(ITHRESH)))
+        IF(RLV(ITHRESH).GT.0.0)THRESHLOG=ALOG(REAL(RLV(ITHRESH)))
      1                           -ALOG(REAL(RLV(IHLENSC)))
-
+      ENDIF
+C
+C   set up the local interpolation functions, quadratic and linear.
+C
       CALL LNCORD(PNI,PLI)
 C
 C     create the file used for debug; delete old version
@@ -589,6 +599,30 @@ C    check that IDT0 is >= 1/TSAVE
       KREMESH=0
       IREM=0    ! changed to 1 on first remesh
 C
+C     Output the boundary condition matrices (if debugging only)
+C
+      IF(IVERB.GT.0)THEN
+        IDOUT=12
+        OPEN(IDOUT,FILE='BCS')
+        WRITE(IDOUT,20101)
+20101   FORMAT('Array data from VSBCON:',/,'   J  NODE      X        ',
+     :         'Y    ITYPX/Y   QBNDX    QBNDY    NGHcw/ac')
+        DO J=1,INTV(INBP)
+          QEX=EX(IBC(J))
+          QEY=EY(IBC(J))
+          IF(INTV(IIDEFTYP).GE.110)THEN
+            CALL PROJECTDEG(QEX,QEY,CENTLNG,YMID,1,INTV(INCOMP),IERR)
+          ENDIF
+          JP=J+INTV(INBP)
+          UU=QBND(J)
+          VV=QBND(JP)
+          WRITE(IDOUT,20102)J,IBC(J),QEX,QEY,IBCTYP(J),IBCTYP(JP),UU,VV,
+     :                      IBNGH(J),IBNGH(JP)
+20102     FORMAT(I4,I6,2F9.4,2I4,2F9.4,2I6)
+        ENDDO
+        CLOSE(IDOUT)
+      ENDIF
+C
 C     -------------------------------------------------start timestep
 C     commence the main loop
 C
@@ -614,41 +648,25 @@ C
 C    recondition the finite element mesh if required
 C
       IF (IGRID.EQ.3) THEN
-        CALL MFIX(JNONUM,EX,EY,RLV(IVC),VHB,LEM,NOR,SSQ,FROT,
+C       CALL MFIX(JNONUM,EX,EY,RLV(IVC),VHB,LEM,NOR,SSQ,FROT,
 C    :            EX1,EY1,NOMOV,SSQ1,FROT1,IELF1,
-     :            IELFIX,IBC,INTV(IIVIS),
-     :            INTV(IITHDI),THDINT,THDISS,
-     :            INTV(INUP),INTV(INE),INTV(INBP),PNI,PLI,LSC,IERROR)
-        IF (IERROR.NE.0) GO TO 555
+C    :            IELFIX,IBC,INTV(IIVIS),
+C    :            INTV(IITHDI),THDINT,THDISS,
+C    :            INTV(INUP),INTV(INE),INTV(INBP),PNI,PLI,LSC,IERROR)
+C       IF (IERROR.NE.0) GO TO 555
       ELSE IF((IGRID.EQ.4).AND.(REMESHFLAG.EQV..TRUE.).AND.
      :    (INTV(INSEG).GT.0)) THEN
         KREMESH=INTV(IKSTEP)
         WRITE(LUW,10129)RLV(ITIMEL)
         WRITE(LSC,10129)RLV(ITIMEL)
 C
-C       save the solution before the remeshing
-C       this could probably be dispensed with, unless debugging needed
-C
-        OPEN(LDUM,FILE=FILED,STATUS='OLD',FORM='UNFORMATTED')
-        CALL WRITESTORE(LDUM,0,INTV,RLV,NAMER,NAMEW,1,IERROR,
-     :          INTV(INROWS),INTV(INUP),INTV(INE),INTV(INBP),
-     :          INTV(INBP2),INTV(INFP),INTV(INEL),
-     :          INTV(INUL),INTV(INPM),INTV(INSM),INTV(INBL),
-     :          INTV(INELLEP),INTV(INSEG),
-     :          EX,EY,UVP,LEM,NOR,VHB,THDINT,
-     :          IMAT,VOLD,SSQ,FROT,DENS,TEMPT,POLEP,IBPOLE,TAPERF,
-     :          IELFIX,QBND,IBC,IBNGH,IBCTYP,IFBC1,IFBC2,
-     :          IFEQV,JFBC1,JFBC2,ISEG,LGEM,EXLG,EYLG,
-     :          UXLG,UYLG,STELPX,STELPY,LGIBC,LGIBCF,
-     :          IELLE,IPOLYN)
-        CLOSE(LDUM)
-C
 C     remeshing grid
 C
-        CALL REMESH(EX,EY,IBCTYP,IBC,IBNGH,SEGLIM,ANGLIM,
-     :              PTLOC,ISEG,LEM,NOR,INTV,IVNEW,IFLT,NFP,
-     :              NFPF3,IFBC1,IFEQV,PDIST,MSNODE,MEASUR,
-     :              LUW,LSC,IERROR)
+        CALL REMESH(EX,EY,IBCTYP,IBC,QBND,SEGLIM,ANGLIM,
+     :              PTLOC,ISEG,LEM,
+     :              INTV,IVNEW,IFLT,INTV(INFP),
+     :              INTV(INFPF3),IFBC1,IFEQV,PDIST,MSNODE,MEASUR,
+     :              LUW,LSC,IVERB,IERROR)
         IF (IERROR.NE.0) THEN
           WRITE(*,*)'Remesh error: terminating current job'
           GO TO 555
@@ -668,47 +686,46 @@ C
 C
 C    re-establish Fault arrays after remeshing - if fault present
 C
-      NFPF3=INTV(INFPF3)
-      NFP=INTV(INFP)
-      IF((IFLT.GT.0).AND.(INTV(IIMSH).EQ.3).AND.(IREAD.EQ.0))THEN
-        CALL FLTINIT(EX,EY,LEM,NOR,IBC,IFBC1,IFBC2,IFEQV,JFBC1,JFBC2,
-     :               INTV(INUP),INTV(INE),NFP,NFPF3,
-     :               INTV(INBP),INTV(INSEG),LUW,LSC,IERROR)
-        IF (IERROR.NE.0)THEN
-          WRITE(LSC,*)'FLTINIT has returned IERROR =',IERROR
-          WRITE(LUW,*)'FLTINIT has returned IERROR =',IERROR
-          GO TO 555
-        ENDIF
+        NFPF3=INTV(INFPF3)
+        NFP=INTV(INFP)
+        IF((IFLT.GT.0).AND.(INTV(IIMSH).EQ.3))THEN
+          CALL FLTINIT(EX,EY,LEM,IBC,IBCTYP,IFBC1,IFBC2,IFEQV,
+     :                 JFBC1,JFBC2,INTV(INUP),INTV(INE),INTV(INFP),
+     :                 INTV(INFPF3),INTV(INBP),INTV(INSEG),
+     :                 INTV(IIDEFTYP),IVERB,LUW,LSC,IERROR)
+          IF (IERROR.NE.0)THEN
+            WRITE(LSC,*)'FLTINIT has returned IERROR =',IERROR
+            WRITE(LUW,*)'FLTINIT has returned IERROR =',IERROR
+            GO TO 555
+          ENDIF
 C
 C    reset fault arrays that act on periodic boundaries
 C
-        IF(NFP.GT.NFPF3)THEN
-          CALL PERIBC(EX,EY,QBND,LEM,NOR,IBC,IBNGH,IBCTYP,
-     :                IFBC1,IFBC2,IFEQV,JFBC1,JFBC2,
-     :                IFLT,INTV(INUP),INTV(INE),INTV(INBP),
-     :                NFP,NFPF3,INTV(IKPBC),PDIST,IREM,LUW,LSC,IERROR)
-C         WRITE(*,*)'PERIBC called PDIST,NFP,NFPF3=',PDIST,NFP,NFPF3
-          IF (IERROR.NE.0)THEN
-            WRITE(LSC,*)'PERIBC has returned IERROR =',IERROR
-            WRITE(LUW,*)'PERIBC has returned IERROR =',IERROR
-            GO TO 555
+          IF(INTV(IKPBC).GT.0)THEN
+            CALL PERIBC(EX,EY,QBND,LEM,IBC,IBNGH,IBCTYP,
+     :                  IFBC1,IFBC2,IFEQV,JFBC1,JFBC2,
+     :                  IFLT,INTV(INUP),INTV(INE),INTV(INBP),
+     :                  INTV(INFP),INTV(INFPF3),INTV(IKPBC),
+     :                  PDIST,IREM,LUW,LSC,IERROR)
+C         WRITE(*,*)'PERIBC called PDIST,NFP,NFPF3=',
+C    :               PDIST,INTV(INFP),INTV(INFPF3)
+            IF (IERROR.NE.0)THEN
+              WRITE(LSC,*)'PERIBC has returned IERROR =',IERROR
+              WRITE(LUW,*)'PERIBC has returned IERROR =',IERROR
+              GO TO 555
+            ENDIF
           ENDIF
         ENDIF
-C
-C       WRITE(*,*)'IFEQV array follows'
-C       CALL IMATPP(IFEQV,NFP)
-C       CALL MITPRT(IFEQV,2,NFP/2,NFP,6)
-      ENDIF
 C
 C   reset series arrays
 C
         IF (INTV(IMSINDX).GT.0) THEN
           CALL GETNODENO(MEASUR,PTLOC,MSNODE,INTV(IMSINDX),
-     :                     EX,EY,NOR,INTV(INUP),INTV(INN),
-     :                     LUW,LSC,IERROR)
+     :                   EX,EY,NOR,INTV(INUP),INTV(INN),
+     :                   LUW,LSC,IERROR)
           CALL GETELEMENTNO(MEASUR,PTLOC,MSNODE,INTV(IMSINDX),
-     :                       EX,EY,NOR,INTV(INUP),INTV(INN),
-     :                       LEM,INTV(INE),LUW,LSC,IERROR)
+     :                      EX,EY,NOR,INTV(INUP),INTV(INN),
+     :                      LEM,INTV(INE),LUW,LSC,IERROR)
 
 #ifndef GFORTRAN
 C==      the call below for SunOS Fortran and g77
@@ -725,7 +742,8 @@ C==      the call below for gfortran. g77 does not recognize POSITION
           CLOSE(LDAT)
         END IF
 C
-C       save the solution from the remeshing
+C       save the solution after remeshing. This is not a converged
+C       solution but it is available to see what mesh is produced
 C
         OPEN(LDUM,FILE=FILED,STATUS='OLD',FORM='UNFORMATTED')
         CALL WRITESTORE(LDUM,0,INTV,RLV,NAMER,NAMEW,1,IERROR,
@@ -740,8 +758,11 @@ C
      :          UXLG,UYLG,STELPX,STELPY,LGIBC,LGIBCF,
      :          IELLE,IPOLYN)
         CLOSE(LDUM)
-        WRITE(LUW,10132)FILED
-        WRITE(LSC,10132)FILED
+C
+C    Set the solution save parameter that will cause remeshed solution to be
+C    saved in solution file after going through convergence cycle once more
+C
+        TTSV=RLV(ITIMEL)-RLV(ITSAVE)
         REMESHFLAG = .FALSE.
       END IF
 C
@@ -750,6 +771,7 @@ C    loop. Can use single step explicit method by choosing TYPE=EXPLICIT
 C    in the input file. The above arrays will still be used, but there 
 C    will only be one pass per timestep.
 C
+C     WRITE(*,*)'Entering loop 199'
       DO 199 IRK=1,ITIMETYPE
 C
 C    Calculate the load vector
@@ -760,11 +782,14 @@ C         IGRAV = 4 for z direction
 C     A.  using gradients of crustal thickness if IGRAV=4
 C
         IF(INTV(IIGRAV).EQ.4.AND.ISSQACTIVE.EQ.1)THEN
-          IF((RLV(IARGAN).NE.0.0).OR.(RLV(IBRGAN).NE.0.0))
-     :         CALL PLOAD(ISET,EX,EY,LEM,NOR,IELFIX,PNI,PLI,
+          IF((RLV(IARGAN).NE.0.0).OR.(RLV(IBRGAN).NE.0.0).OR.
+     :       (INTV(ITOPO).EQ.2))THEN
+            CALL PLOAD(ISET,EX,EY,LEM,NOR,IELFIX,PNI,PLI,
      :                 SSQ,QLOAD,RLV(IARGANP),RLV(IBRGANP),
-     :                 THRESHLOG,INTV(INROWS),INTV(INUP),
-     :                 INTV(INE),INTV(INCOMP),LSC)
+     :                 DFLTSSQ,THRESHLOG,INTV(INROWS),INTV(INUP),
+     :                 INTV(INE),INTV(INCOMP),INTV(ITOPO),LSC)
+          ENDIF
+C
 C     B. using body force distribution if IGRAV!=4
 C     RHOG(1) is the buoyancy coeffiecient F, RHOG(2) is the background
 C     relative density in the solution region.  RHOG(3) is the relative
@@ -780,8 +805,6 @@ C
      :      CALL BFORCE(INTV(IIGRAV),RLV(IRHOG1),INTV(INCOMP),EX,EY,
      :                  LEM,NOR,PNI,PLI,DENS,QLOAD,
      :                  INTV(INUP),INTV(INE),INTV(INROWS))
-C       WRITE(*,*)'QLOAD after BFORCE NROWS...',INTV(INROWS)
-C       CALL SMATPP(QLOAD,INTV(INROWS))
         END IF
 C
 C     The following group of subroutines modify the boundary condition
@@ -800,14 +823,6 @@ C
      :                  INTV(INBP),INTV(INN),INTV(IIBCMOD),
      :                  INTV(INCOMP),RLV(IXREFM),RLV(IBCV1),LUW)
 C
-C     apply plate rotations to set QBND on boundary segments as required
-C     this function now completed by VSBSET called from LOADBC in cginit.f
-C
-C       IF(INTV(IIVRESET).NE.0)
-C    :    CALL VSBSET(QBND,EX,EY,NOR,IBC,IBCTYP,POLEP,
-C    :                IBPOLE,TAPERF,CENTLNG,INTV(INCOMP),
-C    :                INTV(INBP),INTV(INUP),LUW,LSC)
-C      
 C     MB3: adjust the boundary conditions as the slab goes past some x-coordinate
 C     BCV(1) is 0.0 to annul this routine, +ve to change boundary to applied
 C      traction, -ve to change boundary to frictional condition
@@ -818,12 +833,12 @@ C    n.b. clash of purpose between use of IBCMOD=14 by LITHBC and MENDBC
 C
         IF((INTV(IIBCMOD).EQ.4).OR.(INTV(IIBCMOD).EQ.5).OR.
      :     (INTV(IIBCMOD).EQ.8).OR.(INTV(IIBCMOD).EQ.14).OR.
-     :     (INTV(IIBCMOD).EQ.15).OR.(INTV(IIBCMOD).EQ.21))
-     :      CALL MENDBC(INTV(IIBCMOD),RLV(IBCV1),RLV(ITIMEL),
-     :                  RLV(IXLEN),RLV(IYLEN),RLV(IBIG),EX,EY,
-     :                  NOR,IBC,IBCTYP,QBND,INTV(INUP),INTV(INBP),
-     :                  LSC,LUW)
-
+     :     (INTV(IIBCMOD).EQ.15).OR.(INTV(IIBCMOD).EQ.21))THEN
+          CALL MENDBC(INTV(IIBCMOD),RLV(IBCV1),RLV(ITIMEL),
+     :                RLV(IXLEN),RLV(IYLEN),RLV(IBIG),EX,EY,
+     :                NOR,IBC,IBCTYP,QBND,INTV(INUP),INTV(INBP),
+     :                LSC,LUW)
+        ENDIF
 C
 C      Adjust boundary velocities on xmin and xmax boundaries
 C
@@ -854,23 +869,28 @@ C
      :         INTV,IRHEOTYP,INTV(INE),INTV(INUP),INTV(INN),IRK,IRHEOXC)
         END IF
 C
+C    If SEG fault in CGRUN, check if one of the input arrays is corrupted
+C       WRITE(*,*)'IFBC1 prior CGRUN, NFP =',INTV(INFP)
+C       CALL IMATPP(IFBC1,INTV(INFP))
+C       WRITE(*,*)'IFEQV prior CGRUN, NFP =',INTV(INFP)
+C       CALL IMATPP(IFEQV,INTV(INFP))
+C       WRITE(*,*)'IBC prior CGRUN'
+C       CALL IMATPP(IBC,INTV(INBP))
+C       WRITE(*,*)'IBCTYP prior CGRUN'
+C       CALL IMATPP(IBCTYP,INTV(INBP)*2)
+c       WRITE(*,*)'QBND prior CGRUN'
+c       CALL SMATPP(QBND,INTV(INBP)*2)
+C
 C      solve for the velocity and pressure field
 C
-C      WRITE(*,*)'IBCTYP prior CGRUN'
-C      CALL IMATPP(IBCTYP,INTV(INBP)*2)
-C      WRITE(*,*)'QBND prior CGRUN'
-C      CALL SMATPP(QBND,INTV(INBP)*2)
-C      WRITE(*,*)'UVP prior CGRUN'
-C      CALL SMATPP(UVP,INTV(INUP)*2)
         CALL CGRUN(INTV,RLV,UVP,EX,EY,LEM,NOR,VHB,THDISS,THDINT,
-     :             SSQ,QLOAD,QBND,IBC,IBCTYP,IBNGH,IFBC1,IFBC2,IFEQV,
-     :             JFBC1,JFBC2,PNI,PLI,STK,STK2,STK3,STK4,
+     :             SSQ,QLOAD,QBND,TANDF,IBC,IBCTYP,IBNGH,IFBC1,IFBC2,
+     :             IFEQV,JFBC1,JFBC2,PNI,PLI,STK,STK2,STK3,STK4,
      :             IK,IK2,IK4,VISCMIN,VISCMAX,ED2IMIN,ED2IMAX,
-     :             THDIMIN,THDIMAX,POLEP,INTV(INE),INTV(INBP),INTV(INN),
-     :             INTV(INUP),INTV(INFP),INTV(INROWS),IREAD,
-C    :             KBW,K2BW,K4BW,NKP,NK2P,NK4P,
-     :             IREM,IT,RMSU,RMSV,NITER,IOFF,NFPF3,IVERB,IERROR)
-C
+     :             THDIMIN,THDIMAX,POLEP,INTV(INE),INTV(INBP),
+     :             INTV(INN),INTV(INUP),INTV(INFP),INTV(INROWS),
+     :             IREAD,IREM,IT,RMSU,RMSV,NITER,IOFF,INTV(INFPF3),
+     :             IVERB,IERROR)
         IF (IERROR.NE.0) THEN
           IF ((IT.GE.INTV(IITSTOP)).OR.(IERROR.EQ.2)) THEN
 C
@@ -1132,29 +1152,24 @@ C
 C
 C      Deform the finite element mesh using the current velocity
 C
-        CALL DFSTEP(DTP,EXTS,EYTS,EX,EY,UVPTS,NOR,LEM,
+        CALL DFSTEP(DTP,EXTS,EYTS,EX,EY,UVPTS,LEM,
      :              INTV(INUP),INTV(INE),INTV(INN),INTV(INCOMP),
      :              IOFF,RLV(ITBXOFF),RLV(ITBYOFF),
      :              RLV(IVELXO),RLV(IVELYO),
+     :              IFLT,IFBC1,IFEQV,INTV(INFP),INTV(INFPF3),
      :              SEGMIN,LSEGMIN,SHAPEMIN,LSHAPEMIN,
      :              ANGMIN,LANGMIN)
 C
 C      report the mesh shape parameters and decide if REMESHING is needed
 C
         IF(IRK.EQ.1)THEN
-          WRITE(LUW,10133)SEGMIN,SHAPEMIN,ANGMIN*180.0/PI
-          WRITE(LSC,10133)SEGMIN,SHAPEMIN,ANGMIN*180.0/PI
+          WRITE(LUW,10133)SEGMIN,SHAPEMIN,ANGMIN/DTOR
+          WRITE(LSC,10133)SEGMIN,SHAPEMIN,ANGMIN/DTOR
 C
 C      if one of the mesh limits has been exceeded after the mesh interval
-C      or two of the mesh limits have been exceeded then remesh
 C
           IF((SEGMIN.LT.SEGLIM).OR.(SHAPEMIN.LT.SHAPELIM).OR.
-     :              (ANGMIN.LT.ANGLIM)) THEN
-            IF( ((SEGMIN.LT.SEGLIM).AND.(ANGMIN.LT.ANGLIM)).OR.
-     :          (INTV(IKSTEP).GE.KREMESH+KRMINT)) THEN
-              REMESHFLAG=.TRUE.
-            END IF
-          END IF
+     :              (ANGMIN.LT.ANGLIM)) REMESHFLAG=.TRUE.
         END IF
 C
 C      Exit this loop after the 2nd Runge-Kutta step
@@ -1164,17 +1179,17 @@ C
 C    Regridding even if fault is locked because of discontinuous
 C    boundary conditions
 C    Should the fault regridding be moved to the start of the loop?
-      IF(IGRID.EQ.1) CALL FLTGRD(RLV(IHLENSC),RLV(ITBXOFF),RLV(ITBYOFF),
-     :                  EX,EY,EXO,EYO,SSQ,FROT,
-     :                  NOR,LEM,IFBC1,IFEQV,
-C    :                  EX1,EY1,SSQ1,FROT1,NOMOV,JNOAL2,
-     :                  INTV(INUP),INTV(INE),INTV(INN),INTV(INFP),
-     :                  LUW,LSC)
-      IF(IGRID.EQ.2) CALL REGRID(RLV(IHLENSC),EX,EY,EXO,EYO,SSQ,FROT,
-     :                  NOR,LEM,IFBC1,IFEQV,IBCTYP,IENDP1,IENDP2,
-C    :                  EX1,EY1,SSQ1,FROT1,NOMOV,JNOAL2,
-     :                  INTV(INUP),INTV(INE),INTV(INN),INTV(INBP),
-     :                  INTV(INFP))
+C     IF(IGRID.EQ.1) CALL FLTGRD(RLV(IHLENSC),RLV(ITBXOFF),RLV(ITBYOFF),
+C    :                  EX,EY,EXO,EYO,SSQ,FROT,
+C    :                  NOR,LEM,IFBC1,IFEQV,
+CC    :                  EX1,EY1,SSQ1,FROT1,NOMOV,JNOAL2,
+C    :                  INTV(INUP),INTV(INE),INTV(INN),INTV(INFP),
+C    :                  LUW,LSC)
+C     IF(IGRID.EQ.2) CALL REGRID(RLV(IHLENSC),EX,EY,EXO,EYO,SSQ,FROT,
+C    :                  NOR,LEM,IFBC1,IFEQV,IBCTYP,IENDP1,IENDP2,
+CC    :                  EX1,EY1,SSQ1,FROT1,NOMOV,JNOAL2,
+C    :                  INTV(INUP),INTV(INE),INTV(INN),INTV(INBP),
+C    :                  INTV(INFP))
 C
 C    Update the time counters
 C
@@ -1287,7 +1302,7 @@ C
 C10102 format(' execution required ',I6,' seconds')
 10103 FORMAT('KSTP    TIME ITER   AREA       VOLUME    ',
      1'VISDIS     DVMX   URMS    VRMS    ISET')
-10105 format(' rotation rate of indenter is',g12.5,/)
+C10105 format(' rotation rate of indenter is',g12.5,/)
 10106 format(' execution stopped at TIMEL =',g14.5,
      1'    after',i6,'  timesteps',//)
 10107 format(' the velocity vector follows ....',//)
@@ -1662,19 +1677,20 @@ C       Meshing from poly file - allow for 12 neighbouring elements
       COMMON/LGDIM/NXL,NYL,NNL,NML,ILGSAVE
       DIMENSION INTV(64),RLV(64)
       DIMENSION EY(NUP)
-      IF (IFLT.EQ.4) IFLTTYP=3
-      ELSE IFLTTYP=IFLT
-      IFAC=MAX(1,IFLTTYP)
-      IADD=MAX(0,1-IFLTTYP)
-      IMUL=MIN(1,IFLTTYP)
-      IMSHQ = 1-MIN(1,IMSH)
-      INTV(INX)=NX
-      INTV(INY)=NY
-      INTV(IIMSH)=IMSH
-      INTV(IIFLT)=IFLT
+C     IFLTTYP=IFLT
+C     IF (IFLT.EQ.4) IFLTTYP=3
+C     IFAC=MAX(1,IFLTTYP)
+C     IADD=MAX(0,1-IFLTTYP)
+C     IMUL=MIN(1,IFLTTYP)
+C     IMSHQ = 1-MIN(1,IMSH)
+C     INTV(INX)=NX
+C     INTV(INY)=NY
+C     INTV(IIMSH)=IMSH
+C     INTV(IIFLT)=IFLT
       INTV(INFP)=NFP
       INTV(INFPF3)=NFPF3
 C
+      IF (IMSH.EQ.3) THEN
         IF (IFLT.EQ.3.OR.IFLT.EQ.4) IFAC=1
         INTV(INE)=NE
         INTV(INN)=NN
@@ -1683,22 +1699,23 @@ C
         INTV(INBP2)=2*INTV(INBP)
         INTV(INSEG)=NSEG
 C
-        IF (IFLT.EQ.1) THEN
-          YMIN = EY(1)
-          YMAX = EY(1)
-          DO 9 I=2,NUP
-            IF (EY(I).GT.YMAX) YMAX = EY(I)
-            IF (EY(I).LT.YMIN) YMIN = EY(I)
-   9      CONTINUE
-          NXL=0
-          DO 10 N = 1,NUP
-            IF (EY(N).EQ.YMAX) NXL=NXL+1
-            IF (EY(N).EQ.YMIN) NXL=NXL+1
-  10      CONTINUE
-          NYL = NBP - NXL + 4
+C       if periodic bnds - need to pass or check nfp, nfp3
+C       IF (IFLT.EQ.1) THEN
+C         YMIN = EY(1)
+C         YMAX = EY(1)
+C         DO 9 I=2,NUP
+C           IF (EY(I).GT.YMAX) YMAX = EY(I)
+C           IF (EY(I).LT.YMIN) YMIN = EY(I)
+C  9      CONTINUE
+C         NXL=0
+C         DO 10 N = 1,NUP
+C           IF (EY(N).EQ.YMAX) NXL=NXL+1
+C           IF (EY(N).EQ.YMIN) NXL=NXL+1
+C 10      CONTINUE
+C         NYL = NBP - NXL + 4
 C
-          INTV(INFP)=NYL*IMUL
-        END IF
+C         INTV(INFP)=NYL*IMUL
+       END IF
 C
       INTV(INUP)=NUP
       INTV(INUP2)=2*INTV(INUP)
@@ -1709,18 +1726,10 @@ C
 C
 C     initialise the common block for STK array dimensions
 C
-      IF (IMSH.EQ.3.AND.MAXNBS.NE.0) THEN
-        KBW = 2*(MAXNBS*3+1)
-        K2BW = K2BWPOLYP
-        K4BW = KBW+MAXNBS+1
-      ELSE
-        KBW = KBWP
-        K2BW = K2BWP
-        K4BW = K4BWP
-      ENDIF
-      NK = INTV(INUP2)*KBW
-      NK2 = INTV(INUP2)*K2BW
-      NK4 = INTV(INN)*K4BW
+C
+C     for stiffness matrix array dimensions STK, STK2, STK4
+C
+      CALL INITSTKDIM(INTV,IMSH,MAXNBS)
 
 C
 C   May need to adjust RLV values for BCONDMOD etc
@@ -1850,11 +1859,9 @@ Cle      END IF
  
       DO 9 I=1,NUP
         NOR(I)=I
-C   arbitrary velocity field to start (to help VISK)
-C       UVP(I)=1.0/float(I)
     9 CONTINUE
 C
-C    initial temperature
+C    initial temperature (not yet activated)
 C
 Cle      IF (IV(IITEMP).NE.0) THEN
 Cle        DO 20 I=1,NUP

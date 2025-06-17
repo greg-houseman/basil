@@ -622,7 +622,7 @@ int tripolydata( struct triangulateio *out,struct triangulateio *inp,
 
 {
   char str[32], buf[81];
-  int bndmark;
+//  int bndmark;
   int i,j,min,max;
   int rtnval=0;
 
@@ -639,18 +639,20 @@ int tripolydata( struct triangulateio *out,struct triangulateio *inp,
       rtnval=fprintf(stderr,"Malloc failed in tripolydata\n");
       return(1);
   }
-  if ((inp->pointmarkerlist = (int *) malloc(
-             inp->numberofpoints * sizeof(int)))==0) {
-      rtnval=fprintf(stderr,"Malloc failed in tripolydata\n");
-      return(1);
-  }
+
+//  if ((inp->pointmarkerlist = (int *) malloc(
+//             inp->numberofpoints * sizeof(int)))==0) {
+//      rtnval=fprintf(stderr,"Malloc failed in tripolydata\n");
+//      return(1);
+//  }
+
   if ((inp->pointattributelist = (REAL *) malloc(
              inp->numberofpoints * num_pt_attr *sizeof(REAL)))==0) {
       rtnval=fprintf(stderr,"Malloc failed in tripolydata\n");
       return(1);
   }
   for (i=0;i<numpts;i++){
-        bndmark=1;
+//        bndmark=1;
         inp->pointlist[i*2] = xvals[i];
         inp->pointlist[i*2+1] = yvals[i];
         if (inp->pointattributelist) {
@@ -658,9 +660,9 @@ int tripolydata( struct triangulateio *out,struct triangulateio *inp,
             inp->pointattributelist[num_pt_attr*i+j] =
                           pt_attributes[num_pt_attr*i+j];
           }
-          bndmark = inp->pointattributelist[num_pt_attr*(i+1)-1];
+//          bndmark = inp->pointattributelist[num_pt_attr*(i+1)-1];
         }
-        inp->pointmarkerlist[i] = bndmark;
+//        inp->pointmarkerlist[i] = bndmark;
   }
 
     /*
@@ -705,7 +707,7 @@ int tripolydata( struct triangulateio *out,struct triangulateio *inp,
 }
 
 /*    write the current poly file to triin.inp   */
-//WritePoly(inp,"triin.poly");
+WritePoly(inp,"triin.poly");
 
 /*   Switches are chosen for the triangle routine as follows:  */
 /*   Read a PSLG (p), number everything from  zero (z), */
@@ -740,8 +742,8 @@ int tripolydata( struct triangulateio *out,struct triangulateio *inp,
 //printf("Triangulating now: options = %s\n",str);
   triangulate(str, inp, out, (struct triangulateio *) NULL);
 
-  /*WritePoly(out,"out.poly");*/
-  /*WriteBndPoly(out,"bnd.poly");*/
+  WritePoly(out,"out.poly");
+  WriteBndPoly(out,"bnd.poly");
 
 //return 0;
   return(rtnval);
@@ -822,53 +824,79 @@ int WritePoly(struct triangulateio *out,char *name)
  */
 int WriteBndPoly(struct triangulateio *out,char *name)
 {
-    int i, j;
-//  int newindex[out->numberofpoints];
+    int i, j, k, n;
     int rtnval=0;
     FILE *fp;
 
     if ((fp=fopen(name,"w"))==0)
         return(1);
-    rtnval=fprintf(fp,"%d 2 %d ", out->numberofpoints,
-                                  out->numberofpointattributes);
-    rtnval=fprintf(fp,"%d\n", (out->pointmarkerlist!=0?1:0));
-    int bndpts=0;
-    for (i=0;i<out->numberofpoints;i++) {
-//      newindex[i]=-1; 
-//      if (out->pointmarkerlist[i]>0) newindex[i]=bndpts;
-#ifdef SINGLE
-        rtnval=fprintf(fp,"%d %f %f",i,out->pointlist[i*2],
-#else
-        rtnval=fprintf(fp,"%d %lf %lf",i,out->pointlist[i*2],
-#endif
-                                     out->pointlist[i*2+1]);
-        for (j=0;j<out->numberofpointattributes;j++)
-#ifdef SINGLE
-          rtnval=fprintf(fp," %f",
-#else
-          rtnval=fprintf(fp," %lf",
-#endif
-            out->pointattributelist[i*out->numberofpointattributes+j]);
-        rtnval=fprintf(fp," %d", out->pointmarkerlist[i]);
-              rtnval=fprintf(fp,"\n");
-        if (out->pointmarkerlist[i]>0)/* { */
-          bndpts++;
-    }
     if (out->numberofsegments>0) {
-        rtnval=fprintf(fp,"%d ",out->numberofsegments);
-        rtnval=fprintf(fp,"%d\n", (out->segmentmarkerlist!=0?1:0));
-        for (i=0;i<out->numberofsegments;i++) {
-            rtnval=fprintf(fp,"%d %d %d ",i,out->segmentlist[i*2],
-                                      out->segmentlist[i*2+1]);
-            if (out->segmentmarkerlist)
-                rtnval=fprintf(fp," %d", out->segmentmarkerlist[i]);
-            rtnval=fprintf(fp,"\n");
+        int numbndsegs=0;
+        for (i=0,numbndsegs=0;i<out->numberofsegments;i++) {
+            if (out->segmentmarkerlist[i]>0) numbndsegs++;
         }
-    }
+        int numbndpts=numbndsegs; // assumes always more segs than pts
+        int ptindex[numbndpts];
+        for (j=0;j<numbndpts;j++) ptindex[j]=-1;
+        for (i=0,j=0;i<out->numberofsegments;i++) {
+            if (out->segmentmarkerlist[i]>0) {
+                j=0;
+                while ((ptindex[j]!=-1) &&
+                        (ptindex[j]!=out->segmentlist[i*2]) &&
+                        (j<numbndpts)) j++;
+                if (j<numbndpts && (ptindex[j]==-1))
+                   ptindex[j]=out->segmentlist[i*2];
+                j=0;
+                while ((ptindex[j]!=-1) &&
+                        (ptindex[j]!=out->segmentlist[i*2+1]) &&
+                        (j<numbndpts)) j++;
+                if (j<numbndpts && ptindex[j]==-1)
+                ptindex[j]=out->segmentlist[i*2+1];
+            }
+        }
+        int np=0; //actual number of bnd pts which may be less than segs
+        for (j=0,np=0;j<numbndpts;j++) if (ptindex[j]!=-1) np++;
+// for (j=0;j<numbndpts;j++) printf("%d %d\n",j,ptindex[j]);
+        // print point section of poly file
+        rtnval=fprintf(fp,"%d 2 %d 1\n", np,
+                                  out->numberofpointattributes);
+        for (i=0;i<np;i++) {
+            j = ptindex[i];
+#ifdef SINGLE
+            rtnval=fprintf(fp,"%d %f %f",i,out->pointlist[j*2],
+#else
+            rtnval=fprintf(fp,"%d %lf %lf",i,out->pointlist[j*2],
+#endif
+                                     out->pointlist[j*2+1]);
+            for (k=0;k<out->numberofpointattributes;k++) {
+#ifdef SINGLE
+                rtnval=fprintf(fp," %f",
+#else
+                rtnval=fprintf(fp," %lf",
+#endif
+            out->pointattributelist[j*out->numberofpointattributes+k]);
+            } //print pt attributes
+            rtnval=fprintf(fp," %d", j); //marker is index in ptindex list
+            rtnval=fprintf(fp,"\n");
+        } // for each bnd pt
+        // print segment section of poly file
+        rtnval=fprintf(fp,"%d ",numbndsegs);
+        rtnval=fprintf(fp,"1\n");
+        for (i=0,n=0;i<out->numberofsegments;i++) {
+            if (out->segmentmarkerlist[i]>0) {
+                j = k = 0;
+                while (ptindex[k]!=out->segmentlist[i*2]) k++;
+                while (ptindex[j]!=out->segmentlist[i*2+1]) j++;
+                rtnval=fprintf(fp,"%d %d %d ",n,k,j);
+                rtnval=fprintf(fp," %d", out->segmentmarkerlist[i]);
+                rtnval=fprintf(fp,"\n");
+                n++;
+            } // only bnd segments
+        }
+    } //bnd segments
     rtnval=fprintf(fp,"0\n");
     rtnval=fprintf(fp,"0\n");
     fclose(fp);
- // return(0);
     return(rtnval);
 }
 void initio( io )

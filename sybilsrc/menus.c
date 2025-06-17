@@ -130,11 +130,13 @@ String default_resources[] = {
     "currvalsArea*Background:   grey75",
     "*Help*Foreground:     white",
     "*Help*Background:   grey75",
+//  if screen resolution is high (> 1920 x 1080) change 120 to 240 in the following
+//  line and recompile.  Have not been able to work out a better way to automate this 
     "*Xsybil*fontList: -*-helvetica-bold-r-*--*-120-*",
  /* "*Xsybil*fontList: -*-helvetica-r-*--*-120-*", */
         /* Fonts - Font5 used for title area text */
-/*
-    "*Helv 8*fontList: -*-helvetica-medium-r-*--*-80-*=TAG08H",
+  
+/*  "*Helv 8*fontList: -*-helvetica-medium-r-*--*-80-*=TAG08H",
     "*Helv10*fontList: -*-helvetica-medium-r-*--*-100-*=TAG10H",
     "*Helv12*fontList: -*-helvetica-bold-r-*--*-120-*=TAG12H",
     "*Helv14*fontList: -*-helvetica-bold-r-*--*-140-*=TAG14H",
@@ -2836,6 +2838,8 @@ Widget w;
      */
     FindFont("Helvetica",Settings.dfltfonthgt);
     Plot_info.dflt_font = Plot_info.font;
+    Plot_info.large_font = Plot_info.font;    
+// above line added by gh 240313 so that title uses same default font
 }
 
 /*
@@ -3068,17 +3072,17 @@ XtPointer client_data, call_data;
 void InitTitle( title )
 char *title;
 {
-    XFontStruct *oldfont;
+//  XFontStruct *oldfont;
 
     if ((Plot_info.title=(char *)malloc((strlen(title)+1)*sizeof(char)))
                                                             ==NULL)
         ErrorMsg("Title",main_Menu,MALLOC_ERR);
     else {
         strcpy(Plot_info.title,title);
-        oldfont = Plot_info.font;
-        Plot_info.font = Plot_info.large_font;
+//      oldfont = Plot_info.font;
+//      Plot_info.font = Plot_info.large_font;
         DrawTitle( Plot_info.title );
-        Plot_info.font = oldfont;
+//      Plot_info.font = oldfont;
         UpdateCell( plotArea,Plot_info.curr_cell,DRAW );
     }
 }
@@ -3553,7 +3557,6 @@ int Run_App(FILE* logfp)
     else {
         ChangeCell( 0,Plot_info.curr_cell );
     }
-    
     XtAppMainLoop(App_context);
     return(0);
 }

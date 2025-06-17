@@ -318,6 +318,7 @@ int read_data_blk(FILE* fp, char* string_vars, int* int_vars, float* fl_vars,
     /*
      * (c) optional crustal thickness / rotation block
      */
+//  printf("\n read_data_blk int_vars[ICR] = %i\n",int_vars[ICR]);
     if (int_vars[ICR]) {
         num = fread( &cnt, 1, sizeof(int), fp );
     if (longrecmark) fseek(fp,sizeof(int),SEEK_CUR);

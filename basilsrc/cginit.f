@@ -102,7 +102,7 @@ C
       STROLD=0.0
       STRNEW=0.0
       RMSSTR=0
-      IMSTR=0
+C     IMSTR=0
 Cc    DIFSTR=0
       IF (NFP.GE.1) THEN
         DO 20 I=1,NFP
@@ -110,8 +110,8 @@ Cc    DIFSTR=0
           STRN=XNEW(NI)
           DPD=STRN-XOLD(NI)
           DPD=DPD*DPD
-          IF(DPD.GT.STRD)THEN
-            IMSTR=I
+          IF(DPD.GT.STRD)THEN      ! find the largest change in fault stress
+C           IMSTR=I
             STRD=DPD
             STROLD=XOLD(NI)
             STRNEW=STRN
@@ -125,7 +125,7 @@ C     Calculate the new solution vector
 C
           XNEW(NI)= WFITD*STRN + WFCO*XOLD(NI)
    20   CONTINUE
-        RMSSTR=DSQRT(STRS/DFLOAT(NFP))
+        RMSSTR=DSQRT(STRS/FLOAT(NFP))
       END IF
 C
 C     Repeat the above calculation for the pressure field
@@ -236,7 +236,7 @@ C
 C----------------------------------------------------------------
 C
       SUBROUTINE CGRUN(INTV,RLV,UVP,EX,EY,LEM,NOR,VHB,THDISS,
-     :                 THDINT,SSQ,QLOAD,QBND,IBC,IBCTYP,IBNGH,
+     :                 THDINT,SSQ,QLOAD,QBND,TANDF,IBC,IBCTYP,IBNGH,
      :                 IFBC1,IFBC2,IFEQV,JFBC1,JFBC2,PNI,PLI,
      :                 STK,STK2,STK3,STK4,IK,IK2,IK4,
      :                 VISCMIN,VISCMAX,ED2IMIN,ED2IMAX,THDMIN,
@@ -271,10 +271,10 @@ C
       DIMENSION PNI(7,6),PLI(7,3)
       DIMENSION INTV(64)
       DIMENSION RLV(64)
-      DIMENSION STK(NKP),STK2(NK2P),STK3(NFP),STK4(NK4P)      ! local
+      DIMENSION STK(NKP),STK2(NK2P),STK3(NFP),STK4(NK4P)
       DIMENSION IK(NKP),IK2(NK2P),IK4(NK4P)
       DIMENSION VISN(7,NE)
-      DIMENSION POLEP(3,MAXPOLE)
+      DIMENSION POLEP(3,MAXPOLE),TANDF(2)
       DIMENSION PWTS(NN)
       DATA IFIRST/0/
       SAVE IFIRST
@@ -299,16 +299,12 @@ C
       IF(INTV(IIDEFTYP).EQ.110)CENTLNG=RLV(IXREFM)
       IF(INTV(IIFLT).NE.0)THEN
         CALL SEMFLT(BIG,STK2,STK3,IK2,NK2P,K2BWP,
-     :              EX,EY,LEM,NOR,IBCTYP,IBNGH,QLOAD,
+     :              EX,EY,LEM,IBCTYP,IBNGH,QLOAD,
      :              QBND,IFBC1,IFBC2,IFEQV,JFBC1,JFBC2,
      :              RLV(IVELXO),RLV(IVELYO),IOFF,
      :              INTV(IIFLT),IREM,NUP,NE,NROWS,
      :              NBP,NFP,NFPF3,LUW,IERR)
         IF (IERR.NE.0) GO TO 300
-C       IF(IREM.NE.0)THEN
-C       WRITE(*,*)'STK3 after SEMFLT NFP =',NFP
-C       CALL DMATPP(STK3,NFP,LUW)
-C       ENDIF
       ENDIF
 C
 C  Assemble the STK4 (pressure) matrix
@@ -329,9 +325,9 @@ C
         XWRK(J)=UVP(J)
       ENDDO
 C     WRITE(*,*)'XWRK before iterations'
-C     CALL DMATPP(VHB,NROWS)
-C     WRITE(*,*)'STK4 before iterations'
-C     CALL DMATPP(STK4,NK4P)
+C     CALL DMATPP(XWRK,NROWS)
+C     WRITE(*,*)'STK3 before iterations'
+C     CALL DMATPP(STK3,NFP)
 C     WRITE(*,*)'VHB before SEMBL'
 C     CALL SMATPP(VHB,8*NE)
 C     WRITE(*,*)'QBND before SEMBL'
@@ -374,7 +370,7 @@ C
         ENDIF
       ENDIF
 C     WRITE(*,*)'VISN after VISK'
-C     CALL DMATPP(VISN,7*NE,LUW)
+C     CALL DMATPP(VISN,7*NE)
 C
 C     Assemble the stiffness matrices using viscosity VISN from VISK
 C     NCOMP=0 or -1 for thin viscous sheet or shell
@@ -391,8 +387,10 @@ C
 C
 C     put the load vector into XLOAD and add boundary conditions
 C
-      CALL LOADBC(BIG,XLOAD,QLOAD,QBND,EX,EY,IBC,IBCTYP,
+      CALL LOADBC(BIG,XLOAD,QLOAD,QBND,TANDF,EX,EY,IBC,IBCTYP,
      :            POLEP,MAXPOLE,CENTLNG,NUP,NBP,NROWS,INTV(IIPOLE))
+C     WRITE(*,*)'XLOAD after LOADBC'
+C     CALL DMATPP(XLOAD,NROWS)
 C
 C     Solve the matrix equation using the conjugate gradient
 C     method, solving U and V simultaneously.  The estimate of
@@ -413,7 +411,9 @@ C
         GO TO 300
       ENDIF
 C     WRITE(*,*)'XLOAD after CONJGR, NUP =',NUP
-C     CALL DMATPP(XLOAD,NUP,LUW)
+C     CALL DMATPP(XLOAD,NROWS)
+C     WRITE(*,*)'stop after first call of CONJGR'
+C     STOP
 C
 C     Test convergence if non-linear. Copy solution from XLOAD to XWRK
 C
@@ -720,8 +720,10 @@ C       IF(IBCTYP(II).EQ.0.OR.IBCTYP(II).EQ.10)STK(NSX)=BIG
 C       IF(IBCTYP(IY).EQ.0.OR.IBCTYP(IY).EQ.10)STK(NSY)=BIG
         IF(IBCTYP(II).EQ.0.OR.IBCTYP(II).GT.200)STK(NSX)=BIG
         IF(IBCTYP(IY).EQ.0.OR.IBCTYP(IY).GT.200)STK(NSY)=BIG
-        IF(IBCTYP(II).EQ.2)STK(NSX)=STK(NSX)+QBND(II)
-        IF(IBCTYP(IY).EQ.2)STK(NSY)=STK(NSY)+QBND(IY)
+        IF((IBCTYP(II).EQ.2).OR.(IBCTYP(II).EQ.22))
+     :     STK(NSX)=STK(NSX)+QBND(II)
+        IF((IBCTYP(IY).EQ.2).OR.(IBCTYP(IY).EQ.22))
+     :     STK(NSY)=STK(NSY)+QBND(IY)
    80 CONTINUE
 C     WRITE(*,*)'IK matrix indices follow'
 C     CALL MITPRT(IK,KBW,NUP2,KBW*NUP2,6)
@@ -954,22 +956,22 @@ C
 C   set up coordinates for K near vertex
 C
       IF(K.LE.3)THEN
-      CL(1)=ALFA(4)
-      CL(2)=ALFA(4)
-      CL(3)=ALFA(4)
-      CL(K)=ALFA(3)
-      GO TO 20
+        CL(1)=ALFA(4)
+        CL(2)=ALFA(4)
+        CL(3)=ALFA(4)
+        CL(K)=ALFA(3)
+        GO TO 20
       END IF
 C
 C    set up coordinates for K near midpoint
 C
       IF(K.LE.6)THEN
-      IX=MOD(K,3)+1
-      CL(1)=ALFA(2)
-      CL(2)=ALFA(2)
-      CL(3)=ALFA(2)
-      CL(IX)=ALFA(1)
-      GO TO 20
+        IX=MOD(K,3)+1
+        CL(1)=ALFA(2)
+        CL(2)=ALFA(2)
+        CL(3)=ALFA(2)
+        CL(IX)=ALFA(1)
+        GO TO 20
       END IF
 C
 C    K is the centroid
@@ -1146,7 +1148,7 @@ C
       RETURN
       END
 C
-      SUBROUTINE LOADBC(BIG,XLOAD,QLOAD,QBND,EX,EY,IBC,IBCTYP,
+      SUBROUTINE LOADBC(BIG,XLOAD,QLOAD,QBND,TANDF,EX,EY,IBC,IBCTYP,
      :                  POLEP,MAXPOLE,CENTLNG,NUP,NBP,NROWS,IPOLE)
 C
 C    Modifies the load vector obtained from PLOAD by fixing the b.c.'s
@@ -1157,7 +1159,7 @@ C
       DIMENSION QLOAD(NROWS)
       DIMENSION QBND(NBP*2)
       DIMENSION EX(NUP),EY(NUP)
-      DIMENSION POLEP(3,MAXPOLE)
+      DIMENSION POLEP(3,MAXPOLE),TANDF(2)
 C
       DO I=1,NROWS
         XLOAD(I)=QLOAD(I)
@@ -1171,6 +1173,11 @@ C
         ITYPX=IBCTYP(I)
         ITYPY=IBCTYP(I+NBP)
 C
+C    Applied friction boundary condition
+C
+        IF(ITYPX.EQ.2)XLOAD(NNX)=0.
+        IF(ITYPY.EQ.2)XLOAD(NNY)=0.
+C
 C    Applied velocity boundary condition
 C
         IF(ITYPX.EQ.0)XLOAD(NNX)=BIG*QBND(I)
@@ -1178,10 +1185,15 @@ C
 C
 C    Applied traction boundary condition
 C
-        IF(ITYPX.EQ.1.OR.ITYPX.EQ.12.OR.ITYPX.EQ.14)
-     :                       XLOAD(NNX)=XLOAD(NNX)+QBND(I)
-        IF(ITYPY.EQ.1.OR.ITYPY.EQ.12.OR.ITYPY.EQ.14)
-     :                       XLOAD(NNY)=XLOAD(NNY)+QBND(I+NBP)
+        IF((ITYPX.EQ.1).OR.(ITYPX.EQ.12).OR.(ITYPX.EQ.14))
+     :     XLOAD(NNX)=XLOAD(NNX)+QBND(I)
+        IF((ITYPY.EQ.1).OR.(ITYPY.EQ.12).OR.(ITYPY.EQ.14))
+     :     XLOAD(NNY)=XLOAD(NNY)+QBND(I+NBP)
+C
+C    Special arrangement for corner where friction and traction both apply
+C
+        IF(ITYPX.EQ.22)XLOAD(NNX)=XLOAD(NNX)+TANDF(1)
+        IF(ITYPY.EQ.22)XLOAD(NNY)=XLOAD(NNY)+TANDF(2)
 C       WRITE(*,*)I,QBND(I),QBND(I+NBP),ITYPX,ITYPY
   200 CONTINUE
 C
@@ -1191,7 +1203,7 @@ C
      :                          POLEP,BIG,CENTLNG,NBP,NROWS,NUP)
 C
 C     WRITE(*,*)'XLOAD from LOADBC, BIG =',BIG
-C     CALL DMATPP(XLOAD,NROWS,6)
+C     CALL DMATPP(XLOAD,NROWS)
       RETURN
       END
 C
@@ -1347,8 +1359,8 @@ C
 C
 C    DVMX is used to check timestep
 C
-          ADVDX = (DABS(DUDX) + DABS(DVDY))/TRIA
-          IF(ADVDX.GT.DVMX)DVMX=ADVDX
+C         ADVDX = (DABS(DUDX) + DABS(DVDY))/TRIA
+C         IF(ADVDX.GT.DVMX)DVMX=ADVDX
           EDXY=0.5D0*(DUDY+DVDX)
 C
 C    Corrections to the strain-rate expressions for the
@@ -1477,6 +1489,7 @@ C
 C
 C   return single precision variables
 C
+      DVMX = ED2IMAX      !   DVMX used to limit timestep size
       AREASP = AREA
       VISCDSP = VISCD
       VOLUMSP = VOLUM

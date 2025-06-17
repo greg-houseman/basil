@@ -2,8 +2,8 @@
 #               determines whether a colour bar appears and if it
 #               will be vertical (on the right of the plot) or
 #               horizontal (below the plot)
-# colour -      [greyscale/standard]
-#               specifies a standard colourmap or greyscale map 
+# colour -      [greyscale/standard/hawaii/roma]
+#               specifies standard (rainbow), hawaii, roma, or greyscale colourmap 
 #               greyscale useful for output to b/w postscript printers
 # columns -     [1 -> 10]
 # contour_plot -n[+m] where n,m can be shade,lines

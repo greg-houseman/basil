@@ -76,7 +76,7 @@ C
           WRITE(6,*)'Insufficient memory in xpoly, increase MSEG'
           STOP
         ENDIF
-        READ(INSTRING(2:20),*,ERR=44,END=20)IBN(NOBND)      ! segment label
+        READ(INSTRING(2:20),*,ERR=46,END=20)IBN(NOBND)      ! segment label
       ELSE
         READ(INSTRING(1:80),*,ERR=44,END=20)XB2,YB2
         NBSEG(NOBND)=NBSEG(NOBND)+1                         ! number of points in segment
@@ -312,6 +312,8 @@ C
   900 WRITE(*,*)'xpoly requires at least a file called boundary'
       STOP
    44 WRITE(*,*)'Problem reading boundary file, check contents'
+      STOP
+   46 WRITE(*,*)'Segment labels should begin with "# n ", integer n'
       STOP
    45 WRITE(*,*)'Problem reading internal file, check contents'
       STOP

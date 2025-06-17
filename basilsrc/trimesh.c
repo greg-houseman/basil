@@ -82,11 +82,11 @@ unsigned char is_flt_intersect_pt(int id,int fltid,struct gen_fault *list);
 unsigned char in_list(struct node *list, int id);
 struct node *newnode(int id);
 int createafault(struct triangulateio *out,
-                 int *mpstart, int *vstart, int *fstart,
+                 int *mpstart, int *vstart, int *fstart, int ibcmoffv,
                  int *lem, float *ex, float *ey,
                  int *ne, int *ibc, int *ibcngh, int *ibctyp,
-                 int *ifbc1,int *ifbc2,int *iseg,
-                 int nbpfinal,int *nbpext,int *nseg,int *vxtotal,int *mptotal,
+                 int *ifbc1, int *ifbc2, int *ifeqv, int *iseg,
+                 int nbpfinal, int *nbpext, int *nseg,int *vxtotal,int *mptotal,
                  struct gen_fault *flt);
 void findNeighbourPts(int node, int prev, int next,
                       struct triangulateio *out,
@@ -129,12 +129,12 @@ int trimesh( int *iflt, int *nup,int *nn,int *nmp,int *nbp, int *nnnof, int *nmp
              int  *ne,int *nfp,int *nfpf3,int *nseg,int *ivis,int *maxnbs,
              int *nellep,int **ielle_adr,int **ipolyn_adr,
              int **lem_adr,int **lemneighbor_adr,
-             int **ibc_adr,int **ibcnb_adr,int **ibctyp_adr,int **ifbc1_adr,int **ifbc2_adr,
-             int **iseg_adr,
+             int **ibc_adr,int **ibcnb_adr,int **ibctyp_adr,
+	     int **ifbc1_adr,int **ifbc2_adr,int **ifeqv_adr, int **iseg_adr,
              float **ex_adr,float **ey_adr,float **vhb_adr,
              float *xlen, float *ylen,
              float area,float quality,float *visdflt,float *se,int pbxy,int *nbpext,
-             float pdist,char *infile, char *comments)
+             int *verb, float pdist,char *infile, char *comments)
 {
   struct triangulateio out, inp;
   struct flagvals triflags;
@@ -142,7 +142,7 @@ int trimesh( int *iflt, int *nup,int *nn,int *nmp,int *nbp, int *nnnof, int *nmp
   int err=0;
   int i,j,k,k1;
 //int *ncnt=NULL;
-  int *lem,*lemneighbor,*ibc,*ibcngh,*ibctyp,*ifbc1,*ifbc2,*polyn,*iseg;
+  int *lem,*lemneighbor,*ibc,*ibcngh,*ibctyp,*ifbc1,*ifbc2,*ifeqv,*polyn,*iseg;
   float *ex,*ey;
   float *vhb=NULL;
   extern int pntonsegment_();
@@ -158,6 +158,7 @@ int trimesh( int *iflt, int *nup,int *nn,int *nmp,int *nbp, int *nnnof, int *nmp
   float min_dist, dist, c_x, c_y, val;
   int maxrgns=0,maxunodes, dist_set=0, vxtotal=0, mptotal=0, vnofault, mnofault, ibcadded;
   int clrptr=0,countpb=0;
+  FILE *outfile;
 
 //int visc_var=0, sexp_var=0;
 
@@ -183,7 +184,7 @@ int trimesh( int *iflt, int *nup,int *nn,int *nmp,int *nbp, int *nnnof, int *nmp
 
   if (tripoly(&out,&inp,infile,&triflags,comments,nellep,ielle_adr)!=0)
       return(1);
-//WritePoly(&inp, "in.poly");
+  if(*verb > 0) WritePoly(&inp, "tri_setup.poly");
 
   /**********************************/
   /******* Setup Basil Arrays *******/
@@ -208,7 +209,8 @@ int trimesh( int *iflt, int *nup,int *nn,int *nmp,int *nbp, int *nnnof, int *nmp
   }
     *nfpf3=*nfp;
     newbpts=newseg+newvert;
- // printf("trimesh: ex,ey array dimensions nup = %i newbpts = %i nupfinal = %i\n",*nup,newbpts,*nup+newbpts);
+    printf("New points added to mesh: midpoints = %i vertices = %i total = %i\n",newseg,newvert,newbpts);
+    printf("EX,EY array dimensions increased from nup = %i to nupfinal = %i\n",*nup,*nup+newbpts);
 
  // establish the EX and EY arrays
   if ((err=AllocFlArray((*nup+newbpts),ex_adr,0.0))!=0){
@@ -243,7 +245,7 @@ int trimesh( int *iflt, int *nup,int *nn,int *nmp,int *nbp, int *nnnof, int *nmp
 
 //nbpfinal includes all nodes on external boundary and internal faults
   nbpfinal = *nbp+newibc;
-//printf("trimesh: ibc array dimensions nbp = %i newibc = %i nbpfinal = %i\n",*nbp,newibc,nbpfinal);
+  printf("IBC array dimensions: boundary = %i faults = %i nbpfinal = %i\n",*nbp,newibc,nbpfinal);
 
   if ((err=AllocIntArray(nbpfinal,ibc_adr,-1))!=0){
       printf("Problem allocating IBC array\n");
@@ -272,6 +274,11 @@ int trimesh( int *iflt, int *nup,int *nn,int *nmp,int *nbp, int *nnnof, int *nmp
         printf("Problem allocating IFBC2 array\n");
         return(err);
     } ifbc2 = *ifbc2_adr;
+
+    if ((err=AllocIntArray(*nfp,ifeqv_adr,0))!=0){
+        printf("Problem allocating IFEQV array\n");
+        return(err);
+    } ifeqv = *ifeqv_adr;
   }
 
   /***** count the number of nodes connected to each vertex ******/
@@ -437,90 +444,6 @@ int trimesh( int *iflt, int *nup,int *nn,int *nmp,int *nbp, int *nnnof, int *nmp
           }                            // unode visc
     }                                  // unodes
   }                                    // if triangle attributes
-/*for (i = 0; i < *ne; i++) {
-    for (j = 0; j < 3; j++) {
-      a=out.trianglelist[i*6+j];
-      numnbs[a]++;
-      lem[i*6+j]=out.trianglelist[i*6+j] + 1;
-      lemneighbor[i*3+j]=out.neighborlist[i*3+j] + 1;
-      if (is_bnd_pt(&out,a)) {
-        k=0;
-        while (k< *nbp && ibc[k]!=-1 && ibc[k]!=a+1) k++;
-        if (ibc[k] == -1) ibc[k] = a+1;
-        switch (j) {
- 
- //       ibcngh[k] is vertex in clockwise direction,
- //       ibcngh[k+nbp] is vertex in anticlockwise direction,
-  
-          case 0:
-          if (is_bnd_pt(&out,out.trianglelist[i*6+1]))
-            ibcngh[k+nbpfinal]=out.trianglelist[i*6+1] + 1;
-          if (is_bnd_pt(&out,out.trianglelist[i*6+2]))
-            ibcngh[k]=out.trianglelist[i*6+2] + 1;
-          break;
-          case 1:
-          if (is_bnd_pt(&out,out.trianglelist[i*6+2]))
-            ibcngh[k+nbpfinal]=out.trianglelist[i*6+2] + 1;
-          if (is_bnd_pt(&out,out.trianglelist[i*6]))
-            ibcngh[k]=out.trianglelist[i*6] + 1;
-          break;
-          case 2:
-          if (is_bnd_pt(&out,out.trianglelist[i*6]))
-            ibcngh[k+nbpfinal]=out.trianglelist[i*6] + 1;
-          if (is_bnd_pt(&out,out.trianglelist[i*6+1]))
-            ibcngh[k]=out.trianglelist[i*6+1] + 1;
-          break;
-        }
-      }
-    }
-  }
-
-    //  vertices have been loaded in ibc
-//  printf("ibc  array follows, nbp = %i\n",*nbp);
-//  for (k=0; k < *nbp; k++){printf("k = %i ibc=%i ",k,ibc[k]);}
-    mpstart = bvert+fvert+newvert;
-      for (i = 0; i < *ne; i++) {
-    b=out.trianglelist[i*6+4];
-    lem[i*6+3]=b + 1 + newvert;
-    c=out.trianglelist[i*6+5];
-    lem[i*6+4]=c + 1 + newvert;
-    d=out.trianglelist[i*6+3];
-    lem[i*6+5]=d + 1 + newvert;
-    ncnt[d]=1;
-    ncnt[b]=1;
-    ncnt[c]=1;
-    if (is_bnd_pt(&out,b)) {
-        k=mpstart;
-        while (k<  nbpfinal && ibc[k]!=-1 && ibc[k]!=b+1+newvert) k++;
-        if (ibc[k] == -1) ibc[k] = b+1+newvert;
-            if (is_bnd_pt(&out,out.trianglelist[i*6+2]))
-              ibcngh[k]=out.trianglelist[i*6+2] + 1;
-            if (is_bnd_pt(&out,out.trianglelist[i*6]))
-              ibcngh[k+nbpfinal]=out.trianglelist[i*6] + 1;
-    }
-    if (is_bnd_pt(&out,c)) {
-        k=mpstart;
-        while (k< nbpfinal && ibc[k]!=-1 && ibc[k]!=c+1+newvert) k++;
-            if (ibc[k] == -1) ibc[k] = c+1+newvert;
-            if (is_bnd_pt(&out,out.trianglelist[i*6]))
-              ibcngh[k]=out.trianglelist[i*6] + 1;
-            if (is_bnd_pt(&out,out.trianglelist[i*6+1]))
-              ibcngh[k+nbpfinal]=out.trianglelist[i*6+1] + 1;
-    }
-    if (is_bnd_pt(&out,d)) {
-        k=mpstart;
-        while (k< nbpfinal && ibc[k]!=-1 && ibc[k]!=d+1+newvert) k++;
-        if (ibc[k] == -1) ibc[k] = d+1+newvert;
-            if (is_bnd_pt(&out,out.trianglelist[i*6+1]))
-              ibcngh[k]=out.trianglelist[i*6+1] + 1;
-            if (is_bnd_pt(&out,out.trianglelist[i*6+2]))
-              ibcngh[k+nbpfinal]=out.trianglelist[i*6+2] + 1;
-    }
-  }
-*/
-   //   midpoints now loaded in ibc
-/*  printf("ibc  array follows, nbp = %i\n",nbpfinal);
-    for (k=0; k < nbpfinal; k++){printf("k = %i ibc=%i ",k,ibc[k]);} */
 /*
 for (i = 0; i < *ne; i++) {
     printf("%d %d %d %d %d %d\n",out.trianglelist[i*6+0],
@@ -557,31 +480,31 @@ for (i = 0; i < *ne; i++) {
  //   if antclockwise segment (relative to j) is on the external boundary
       if(lemnela==0){                                  // if external boundary segment
 	 ibc[k] = aj+1;
- 	 ibcngh[k+nbpfinal]=ajac + 1;                  // record anticlockwise neighbour
+ 	 ibcngh[k+nbpfinal]=ajac + 1;                  // ajac is anticlockwise of aj
 //	 printf("trimesh: i, j, k = %i %i %i aj, ajac = %i %i\n",i,j,k,aj,ajac);
 	 k++;
 
  //    ibcngh[k] is clockwise vertex; ibcngh[k+nbpfinal] is anticlockwise
          ibc[mpk] = macnv + 1;                         // anticlockwise midpoint
-	 ibcngh[mpk+nbpfinal]=ajac + 1;
-	 ibcngh[mpk]=aj + 1;
+	 ibcngh[mpk]=aj + 1;                           // aj is clockwise of mpk
+	 ibcngh[mpk+nbpfinal]=ajac + 1;                // ajac is anticlockwise of mpk
 // 	 printf("ac: aj = %i ajac = %i macnv = %i k = %i mpk = %i\n",aj,ajac,macnv,k,mpk);
 	 mpk++;
       }
     }
   }
-//printf("%i vertex nodes and %i midpoint nodes for ext boundary stored in ibc, ibcmoffv = %i\n",k,mpk-mpk0,ibcmoffv);
+//printf("%i vertex nodes and %i midpoint nodes for ext boundary stored in ibc, ibcmoffv = %i\n",
+//         k,mpk-mpk0,ibcmoffv);
   if((k!=bvert)||((mpk-mpk0)!=bvert)){   //check valid condition if any node duplicated
      printf("trimesh problem in ibc: %i vertex nodes, %i midpoints, bvert = %i\n",
             k,(mpk-mpk0),bvert);
   }
 
 //   to identify clockwise vertex neighbours, examine all of the anticlockwise segments
+//   if ajac is anti-clockwise of aj, then aj is clockwise of ajac
   for(k1=0; k1<bvert; k1++){
-     aj=ibc[k1];
-     ajac=ibcngh[k1+nbpfinal];
      for(k=0; k<bvert; k++){
-        if(ajac==ibc[k])ibcngh[k]=aj;
+        if(ibcngh[k+nbpfinal]==ibc[k1])ibcngh[k1]=ibc[k];
      }
   }
 
@@ -590,7 +513,8 @@ for (i = 0; i < *ne; i++) {
   if (out.numberofsegments>0 && out.segmentlist) {
     *nseg = out.numberofsegments;
 //  printf("trimesh: *nseg = %i *nbp = %i newseg = %i\n",*nseg,*nbp,newseg);
-    if ((err=AllocIntArray((*nseg+newseg) * 3, iseg_adr, 0))!=0){
+//  if ((err=AllocIntArray((*nseg+newseg) * 3, iseg_adr, 0))!=0){
+    if ((err=AllocIntArray((*nseg) * 3, iseg_adr, 0))!=0){
       printf("Problem allocating ISEG array\n");
       return(err);
     }
@@ -599,7 +523,6 @@ for (i = 0; i < *ne; i++) {
         iseg[i*3]=out.segmentlist[i*2]+1;
         iseg[i*3+1]=out.segmentlist[i*2+1]+1;
         iseg[i*3+2]=out.segmentmarkerlist[i];
-    //  printf("i = %i iseg[i*3+ 0,1,2] = %i %i %i\n",i,iseg[i*3],iseg[i*3+1],iseg[i*3+2]);
     }
   }
 
@@ -616,8 +539,8 @@ for (i = 0; i < *ne; i++) {
     mnofault=mptotal;
 //  printf("trimesh: vnofault = %i mnofault = %i bvert = %i\n",vnofault,mnofault,bvert);
     while (flts) {
-        if (createafault(&out,&mpstart,&vstart,&fstart,
-                lem,ex,ey,ne,ibc,ibcngh,ibctyp,ifbc1,ifbc2,iseg,
+        if (createafault(&out,&mpstart,&vstart,&fstart,ibcmoffv,
+                lem,ex,ey,ne,ibc,ibcngh,ibctyp,ifbc1,ifbc2,ifeqv,iseg,
                 nbpfinal,nbpext,nseg,&vxtotal,&mptotal,flts)) {
                 printf("error creating fault\n");
                 return(1);
@@ -667,7 +590,15 @@ for (i = 0; i < *ne; i++) {
                      j,ibc[j],ibcngh[j],ibcngh[j+nbpfinal]);
       }
     }
-
+// output seg array if needed for debugging
+  if (*verb > 0){
+    outfile = fopen("SEG", "w");
+    fprintf(outfile,"i, iseg array from trimesh follows\n");
+    for(i = 0;i < *nseg; i++){
+        fprintf(outfile,"%5i %6i %6i %6i\n",i,iseg[i*3],iseg[i*3+1],iseg[i*3+2]);
+    }
+    fclose(outfile);
+  }
 
   /***********************/
   /******* Cleanup *******/
@@ -701,7 +632,7 @@ int tri_remesh( int *iflt,int *nup,int *nn,int *nmp,int *nbp,int *nnnof,
              float *exbnd, float *eybnd, float *pt_attributes,
              float *xlen, float *ylen,
              float area, float quality, float *visdflt,float *se,int pbxy,int *nbpext,
-             int npbpt)
+             int npbpt, int *verb)
 {
   struct triangulateio out, inp;
   struct flagvals triflags;
@@ -710,9 +641,11 @@ int tri_remesh( int *iflt,int *nup,int *nn,int *nmp,int *nbp,int *nnnof,
   int *lem,*lemneighbor,*ibc,*ibcngh,*ibctyp,*imat;
   int *ifbc1,*ifbc2,*ifeqv,*jfbc1,*jfbc2;
   float *ex,*ey,*qbnd;
+//float *vhb;
   extern int pntonsegment_();
-  int aj,ajac,mac,macnv,lemnela,mpk;
-  int newvert, newseg, newibc, ibcmoffv, newbpts, nbpfinal;
+  int aj,ajac,mac,macnv,lemnela,mpk,fmidno,nco,fvertac,fvertcw,kac,kcw;
+  int ajacibtypx,ajacibtypy;
+  int newvert, newseg, newibc, ibcmoffv, newbpts, nbpfinal,vtxend;
   int bvert,bmidp,nvptb,nvptf,nvpti;
   float *rgnattribs=NULL;
 /*float *unodedata=NULL,*unodeattribs=NULL; */
@@ -722,6 +655,8 @@ int tri_remesh( int *iflt,int *nup,int *nn,int *nmp,int *nbp,int *nnnof,
   int npat,numrgns=0,vnofault,mnofault,ibcadded;
   int itp1,itp2;
   unsigned char ptflag;
+  FILE *outfile;
+  int ipt,ifp1,ifq1,ifp2,ifq2,ifr,jf;
 
   /* default area is  0.025*0.025 (area of tri with minNodeSep sides) */
   triflags.area = area; /* area of tri with minNodeSep sides */
@@ -740,74 +675,68 @@ int tri_remesh( int *iflt,int *nup,int *nn,int *nmp,int *nbp,int *nnnof,
      printf("Periodic boundaries (Y) are enabled. npbpt = %i\n",npbpt);
   }
   else triflags.bndpts = 1;
-
   initio( &inp );
   initio( &out );
 
 /*    new section to identify material numbers   */
 
-if  (mreg>0) {
-   imat = *imat_adr;
-   for (i=0; i<*ne; i++) {
-       if (imat[i]>numrgns) numrgns=imat[i];
-   }
-   if ((rgnattribs= (float *)malloc((numrgns) * 4 *
-                                    sizeof(float)))==NULL) return(1);
-   for (i=0; i<numrgns; i++) {
-       unsigned char found=0;
-       for (j=0; j<*ne && !found; j++) {
-         if (imat[j]==(i+1)) {
-              for (k = 0,c_x=0.0,c_y=0.0; k < 3; k++) {
-                            c_x += (*ex_adr)[(*lem_adr)[j*6+k]-1];
-                            c_y += (*ey_adr)[(*lem_adr)[j*6+k]-1];
-              }
-              c_x /= 3.0;
-              c_y /= 3.0;
-              found = 1;
-         }
-       }
-    if (found) {
-      rgnattribs[i*4] = c_x;
-      rgnattribs[i*4 + 1] = c_y;
-      rgnattribs[i*4 + 2] = i+1;
-      rgnattribs[i*4 + 3] = area;
+  if(mreg>0) {
+    imat = *imat_adr;
+    for (i=0; i<*ne; i++) {
+      if (imat[i]>numrgns) numrgns=imat[i];
     }
-    /* report error */
-   }
-}
-//printf("before tripolydata, newpts = %i newnseg = %i\n",newpts,newnseg);
+    if ((rgnattribs= (float *)malloc((numrgns) * 4 *
+                                    sizeof(float)))==NULL) return(1);
+    for (i=0; i<numrgns; i++) {
+      unsigned char found=0;
+      for (j=0; j<*ne && !found; j++) {
+        if (imat[j]==(i+1)) {
+          for (k = 0,c_x=0.0,c_y=0.0; k < 3; k++) {
+            c_x += (*ex_adr)[(*lem_adr)[j*6+k]-1];
+            c_y += (*ey_adr)[(*lem_adr)[j*6+k]-1];
+          }
+          c_x /= 3.0;
+          c_y /= 3.0;
+          found = 1;
+        }
+      }
+      if (found) {
+        rgnattribs[i*4] = c_x;
+        rgnattribs[i*4 + 1] = c_y;
+        rgnattribs[i*4 + 2] = i+1;
+        rgnattribs[i*4 + 3] = area;
+      }
+    }
+  }
+//printf("used in tripolydata: newpts = %i newnseg = %i\n",newpts,newnseg);
   if (tripolydata(&out,&inp,&triflags,newpts,newnseg,num_pt_attr,
                   isegnew,exbnd,eybnd,pt_attributes,rgnattribs,numrgns)!=0)
       return(1);
-//printf("after tripolydata: newpts = %i numrgns = %i\n",newpts,numrgns);
-//  WritePoly(&inp, "regrid_7_5in.poly");
+  if(*verb > 0) WritePoly(&inp, "tri_regrid.poly");
+  if (numrgns>0) {free(rgnattribs); rgnattribs=NULL;}
 
-    if (numrgns>0) {free(rgnattribs); rgnattribs=NULL;}
-
-    if (*lem_adr!=NULL) {free(*lem_adr); *lem_adr=NULL;}
-    if (*lemneighbor_adr!=NULL) {free(*lemneighbor_adr); *lemneighbor_adr=NULL;}
-    if (*ibc_adr!=NULL) {free(*ibc_adr);*ibc_adr=NULL;}
-    if (*ibcnb_adr!=NULL) {free(*ibcnb_adr); *ibcnb_adr=NULL;}
-    if (*ibctyp_adr!=NULL) {free(*ibctyp_adr); *ibctyp_adr=NULL;}
-//  if (*ibpole_adr!=NULL) {free(*ibpole_adr); *ibpole_adr=NULL;}
-    if (*iseg_adr!=NULL) {free(*iseg_adr); *iseg_adr=NULL;}
-    if (*imat_adr!=NULL) {free(*imat_adr); *imat_adr=NULL;}
-    if (*qbnd_adr!=NULL) {free(*qbnd_adr); *qbnd_adr=NULL;}
-//  if (*taperf_adr!=NULL) {free(*taperf_adr); *taperf_adr=NULL;}
-  /**********************************/
-  /******* Setup Basil Arrays *******/
-  /**********************************/
+// free space used by basil arrays that define the previous mesh
+   if (*lem_adr!=NULL) {free(*lem_adr); *lem_adr=NULL;}
+   if (*lemneighbor_adr!=NULL) {free(*lemneighbor_adr); *lemneighbor_adr=NULL;}
+   if (*ibc_adr!=NULL) {free(*ibc_adr);*ibc_adr=NULL;}
+   if (*ibcnb_adr!=NULL) {free(*ibcnb_adr); *ibcnb_adr=NULL;}
+   if (*ibctyp_adr!=NULL) {free(*ibctyp_adr); *ibctyp_adr=NULL;}
+   if (*iseg_adr!=NULL) {free(*iseg_adr); *iseg_adr=NULL;}
+   if (*imat_adr!=NULL) {free(*imat_adr); *imat_adr=NULL;}
+   if (*qbnd_adr!=NULL) {free(*qbnd_adr); *qbnd_adr=NULL;}
+// if (*ibpole_adr!=NULL) {free(*ibpole_adr); *ibpole_adr=NULL;}   obsolete
+// if (*taperf_adr!=NULL) {free(*taperf_adr); *taperf_adr=NULL;}
 
 //  identify and count fault points in seg array, set value of nfpf3, nfp
-  newvert=newseg=newbpts=newibc=ibcmoffv=0;
-  *nfpf3=*nfp=0;
-  if(*iflt && (out.numberofsegments>0)){
-    findfltpts(&flts,&out,nfpf3,&newvert,&newseg,&newibc,&ibcmoffv);
-    if(!(*nfpf3)){
-        printf("Warning: fault type is non-zero but no internal faults found; iflt reset to 0\n");
-	*iflt=0;
-    }
-  }
+   newvert=newseg=newbpts=newibc=ibcmoffv=0;
+   *nfpf3=*nfp=0;
+   if(*iflt && (out.numberofsegments>0)){
+     findfltpts(&flts,&out,nfpf3,&newvert,&newseg,&newibc,&ibcmoffv);
+     if(!(*nfpf3)){
+       printf("Warning: fault type is non-zero but no internal faults found; iflt reset to 0\n");
+       *iflt=0;
+     }
+   }
   *nfp=*nfpf3+npbpt;
 //printf("after findfltpts: newvert, newseg, newibc, *nfp, *nfpf3 = %i %i %i %i %i\n", 
 //         newvert,newseg,newibc,*nfp,*nfpf3);
@@ -817,39 +746,32 @@ if  (mreg>0) {
   *nmpnof=*nmp=out.numberofedges;
   *nnnof=*nn=*nup-(*nmp);
   *ne=out.numberoftriangles;
-//printf("tri_remesh: *nup = %i *nn = %i *nmp = %i *ne = %i\n",*nup,*nn,*nmp,*ne);
+  *nseg = out.numberofsegments;
+//printf("tri_remesh: *nup = %i *nn = %i *nmp = %i *ne = %i *nseg = %i newnseg = %i\n",
+//		  *nup,*nn,*nmp,*ne,*nseg,newnseg);
 
 //  re-establish the seg array
-  *nseg = out.numberofsegments;
-  nvpti=nvptf=nvptb=0;
   if(*nseg){
-    *iseg_adr = isegnew = (int *) malloc((*nseg+newseg) * 3 * sizeof(int));
+    *iseg_adr = isegnew = (int *) malloc((*nseg) * 3 * sizeof(int));
     if(isegnew==NULL) return(1);
     for (k = 0; k < *nseg; k++) {
         isegnew[k*3]=out.segmentlist[k*2]+1;
         isegnew[k*3+1]=out.segmentlist[k*2+1]+1;
         isegnew[k*3+2]=out.segmentmarkerlist[k];
 //	printf("k = %i isegnew = %i %i %i \n",k,isegnew[k*3],isegnew[k*3+1],isegnew[k*3+2]);
+    }
+  }
 
 //  determine number of vertex points on external boundary and on internal faults
-    }
-    for(i=0; i<*nup; i++){
-      ptflag=is_inex_bnd_pt(i,out.segmentlist,out.segmentmarkerlist,*nseg);
-      if(ptflag==1){nvptb++;}
-      else if(ptflag==2){nvptf++;}
-      else if(ptflag==3){nvpti++;}
-    }
+//  nodes are assigned to external, fault, internal in precedence if they are found on > 1 boundary
+  nvpti=nvptf=nvptb=0;
+  for(i=0; i<*nup; i++){
+    ptflag=is_inex_bnd_pt(i,out.segmentlist,out.segmentmarkerlist,*nseg);
+    if     (ptflag==1)nvptb++;
+    else if(ptflag==2)nvptf++;
+    else if(ptflag==3)nvpti++;
   }
   *nbpext=*nbp=nvptb;   //  the no. of external boundary vertex points = no. of midpoints
-//printf("tri_remesh: nvptb = %i nvptf = %i nvpti = %i *nseg = %i\n",nvptb,nvptf,nvpti,*nseg);
-//
-//  Warning: check what happens if fault intersects boundary or other fault, or if
-//  multiple internal faults. The following check provides a warning that has occurred.
-//
-  if((nvptb+nvptf+nvpti)!= *nseg){
-      printf("Remeshed segment boundaries appear to intersect at %i points\n",
-		      (*nseg-(nvptb+nvptf+nvpti)));
-  }
 
 // allocate space for ex, ey coordinates, allowing for duplicate fault nodes to be added
 // newseg is number of new midpoints; newvert is number of new vertices
@@ -871,10 +793,12 @@ if  (mreg>0) {
 //  space for ibc = boundary vertices + boundary midpoints + 2*(fault vertices + fault midpts)
 //  following should work for closed faults that don't intersect.  Other cases may need further thought
 //
-  bvert=nvptb + 2*newvert;
+  bvert=nvptb + 2*newseg;
   bmidp=nvptb + 2*newseg;
   nbpfinal = bvert+bmidp;
-//printf("tri_remesh: bvert = %i bmidp = %i nbpfinal = %i\n",bvert,bmidp,nbpfinal);
+  printf("External boundary nodes = %i, Fault boundary nodes = %i, IBC array size = %i\n",
+                                             nvptb*2,(4*newseg),nbpfinal);
+  vtxend=nvptb+2*newseg;        // marks the last vertex point in ibc
   *ibc_adr = ibc = (int *) malloc(nbpfinal * sizeof(int));
   *ibcnb_adr = ibcngh = (int *) malloc(nbpfinal * 2 * sizeof(int));
   *ibctyp_adr = ibctyp = (int *) malloc(nbpfinal * 2 * sizeof(int));
@@ -908,7 +832,10 @@ if  (mreg>0) {
                       icount,imatmax);
      }
   }
-
+// next 80 lines or so relate to repopulation of VHB, which is presently done
+// in remesh_data by interpolation of the old array.  Is there a reason for
+// retaining this block which uses another method ?
+//
   /*
    * ivv    visc (vhb[i,1-7])    se (vhb[i,8])
    *  0       constant(1)        constant(1)    No vhb array
@@ -917,22 +844,21 @@ if  (mreg>0) {
    *  3       variable           constant(>1)
    *  4       variable           variable
    */
+
+//allocate and initialise the vhb array (done in remesh_data ??)
+//
 /*  if ( *ivv>0 && *vhb_adr==NULL ) {
- 
-        // allocate and initialise the vhb array
-        // the input file contains VIS settings
-  
       if ((*vhb_adr = vhb=
           (float *) malloc(*ne * 8 * sizeof(float)))==NULL)
             return(1);
       for (i = 0; i < *ne * 8; i++) vhb[i]=1.0;
   }
-  printf("allocated and initialized vhb, *ne = %i\n");
+  printf("allocated and initialized vhb, *ne = %i\n",*ne); */
 
   // the triangle attribute is the region identifier
   // save it and set triangle attributes, if found
  
-  if (out.triangleattributelist!=NULL) {
+/*  if (out.triangleattributelist!=NULL) {
       if ((*ipolyn_adr = polyn=
                   (int *) malloc(*ne * sizeof(int)))==NULL)
           return(1);
@@ -1056,8 +982,9 @@ if  (mreg>0) {
                  2/___|0          2/___|0
                     3                4
 */
+
   npat=out.numberofpointattributes;
-  mpk=*nbpext+2*newvert;                    // in ibc, midpoints stored after all vertices
+  mpk=*nbpext+ibcmoffv;                    // in ibc, midpoints stored after all vertices
   k=0;
   for (i = 0; i < *ne; i++) {
     for (j = 0; j < 3; j++) {
@@ -1074,104 +1001,174 @@ if  (mreg>0) {
 
  //   if antclockwise segment (relative to j) is on the external boundary
       if(lemnela==0){                                  // if external boundary segment
-	 ibc[k] = aj+1;
-         qbnd[k]=out.pointattributelist[aj*npat];      // boundary entries for node j
-         qbnd[k+nbpfinal]=out.pointattributelist[aj*npat+1];
-         ibctyp[k]=(int)ceilf((float)(out.pointattributelist[aj*npat+2]));
-         ibctyp[k+nbpfinal]=(int)ceilf((float)(out.pointattributelist[aj*npat+3]));
- 	 ibcngh[k+nbpfinal]=ajac + 1;                  // record anticlockwise neighbour
-	 k++;
+        ibc[k] = aj+1;
+        qbnd[k]=out.pointattributelist[aj*npat];         // boundary entries for node j
+        qbnd[k+nbpfinal]=out.pointattributelist[aj*npat+1];
+        ibctyp[k]=(int)(out.pointattributelist[aj*npat+2]+0.001);
+        ibctyp[k+nbpfinal]=(int)(out.pointattributelist[aj*npat+3]+0.001);
+        ibcngh[k+nbpfinal]=ajac + 1;                  // ajac is anticlockwise of aj
+//    printf("trimesh: i, j, k = %i %i %i aj, ajac = %i %i\n",i,j,k,aj,ajac);
 
- //    ibcngh[k] is clockwise vertex; ibcngh[k+nbpfinal] is anticlockwise
-         ibc[mpk] = macnv + 1;                         // anticlockwise midpoint
-         qbnd[mpk]=out.pointattributelist[mac*npat];
-         qbnd[mpk+nbpfinal]=out.pointattributelist[mac*npat+1];
-         ibctyp[mpk]=(int)ceilf((float)(out.pointattributelist[mac*npat+2]));
-         ibctyp[mpk+nbpfinal]=(int)ceilf((float)(out.pointattributelist[mac*npat+3]));
-	 ibcngh[mpk+nbpfinal]=ajac + 1;
-	 ibcngh[mpk]=aj + 1;
-// 	 printf("ac: aj = %i ajac = %i macnv = %i k = %i mpk = %i\n",aj,ajac,macnv,k,mpk);
-//       printf("ex[macnv], ey[macnv] = %f %f ex[aj] ey[aj] = %f %f ex[ajac] ey[ajac] = %f %f\n",
-//	         ex[macnv], ey[macnv], ex[aj], ey[aj], ex[ajac], ey[ajac]);
+//    ibcngh[k] is clockwise vertex; ibcngh[k+nbpfinal] is anticlockwise
+        ibc[mpk] = macnv + 1;                         // anticlockwise midpoint
+        ibcngh[mpk]=aj + 1;                           // aj is clockwise of mpk
+        ibcngh[mpk+nbpfinal]=ajac + 1;                // ajac is anticlockwise of mpk
+//     printf("ac: aj = %i ajac = %i macnv = %i k = %i mpk = %i\n",aj,ajac,macnv,k,mpk);
+						       
+//  midpoints do not have point attributes stored; use adjacent vertex attributes
+//  if velocity and traction fixed on neighbouring vertex nodes, midpoint set to traction.
+        ajacibtypx=(int)(out.pointattributelist[ajac*npat+2]+0.001);
+	ajacibtypy=(int)(out.pointattributelist[ajac*npat+3]+0.001);
+	 if(ajacibtypx > ibctyp[k]){
+	     ibctyp[mpk]=ajacibtypx;
+	     qbnd[mpk]=out.pointattributelist[ajac*npat];
+	 }
+	 else {
+	     ibctyp[mpk]=ibctyp[k];
+	     qbnd[mpk]=qbnd[k];
+	 }
+	 if(ajacibtypy > ibctyp[k+nbpfinal]){
+	     ibctyp[mpk+nbpfinal]=ajacibtypy;
+	     qbnd[mpk+nbpfinal]=out.pointattributelist[ajac*npat+1];
+	 }
+	 else {
+	     ibctyp[mpk+nbpfinal]=ibctyp[k+nbpfinal];
+	     qbnd[mpk+nbpfinal]=qbnd[k+nbpfinal];
+	 }
+ //      printf("tri_remesh: mpk = %i ibc[mpk] = %i ibctyp[mpk], [mpk+nbpfinal] = %i %i qbnd = %f %f \n",
+ //    	        mpk,ibc[mpk],ibctyp[mpk],ibctyp[mpk+nbpfinal],qbnd[mpk],qbnd[mpk+nbpfinal]);
+	 k++;
 	 mpk++;
-      }
-    }
-  }
-  if((k!=nvptb)||((mpk-*nbpext-2*newvert)!=nvptb)){
+      }      // if lemnela==0
+    }        // loop on j, node in element
+  }          // loop on i, element
+  if((k!=nvptb)||((mpk-*nbpext-ibcmoffv)!=nvptb)){
      printf("tri_remesh problem in ibc: %i vertex nodes added, %i midpoints added. nvptb = %i\n",
-            k,(mpk-*nbpext-2*newvert),nvptb);
+            k,(mpk-*nbpext-ibcmoffv),nvptb);
   }
 
 //   to identify clockwise vertex neighbours, examine all of the anticlockwise segments
+//   if ajac is anti-clockwise of aj, then aj is clockwise of ajac
   for(k1=0; k1<nvptb; k1++){
-     aj=ibc[k1];
-     ajac=ibcngh[k1+nbpfinal];
      for(k=0; k<nvptb; k++){
-        if(ajac==ibc[k])ibcngh[k]=aj;
+        if(ibcngh[k+nbpfinal]==ibc[k1])ibcngh[k1]=ibc[k];
      }
   }
-//  for (k=0; k< nbpfinal; k++){
-//   printf("tri_remesh, k = %i ibc[k] = %i ex = %f ey = %f typx = %i qx = %f typy = %i qy = %f\n",k,ibc[k],
-//	    ex[ibc[k]-1],ey[ibc[k]-1],ibctyp[k],qbnd[k],ibctyp[k+nbpfinal],qbnd[k+nbpfinal]);
-//   }
 
-//  re-establish the faults
-  if (*iflt && *nseg) {
-    int mpstart = out.numberofpoints+newvert-1;
-    int vstart = out.numberofpoints-out.numberofedges-1;
-    int fstart = -1;
+//  re-establish the faults; the following indices incremented at each call to createafault
+  if (*iflt) {
+    int vstart = out.numberofpoints-out.numberofedges-1;   // index for EX,EY (vertices)
+    int mpstart = out.numberofpoints+newvert-1;            // index for EX,EY (midpoints)
+    int fstart = -1;                                       // index for IFBC1, IFBC2, etc
     vxtotal=0;
     while (ibc[vxtotal]!=-1) vxtotal++;
-    vxtotal--;
-    mptotal=nbpfinal-1;
+    vxtotal--;                                             // total entries for vertices in IBC
+    mptotal=nbpfinal-1;                                    // total entries for midpoints in IBC
     while (ibc[mptotal]==-1) mptotal--;
     vnofault=vxtotal;
     mnofault=mptotal;
     while (flts) {
-       if (createafault(&out,&mpstart,&vstart,&fstart,
-            lem,ex,ey,ne,ibc,ibcngh,ibctyp,ifbc1,ifbc2,
+       if (createafault(&out,&mpstart,&vstart,&fstart,ibcmoffv,
+            lem,ex,ey,ne,ibc,ibcngh,ibctyp,ifbc1,ifbc2,ifeqv,
             isegnew,nbpfinal,nbpext,nseg,&vxtotal,&mptotal,flts)) {
                 printf("error creating fault\n");
                 return(1);
         }
+//      printf("after createafault: vxtotal,mptotal,vnofault,mnofault = %i %i %i %i\n",
+//  		    vxtotal,mptotal,vnofault,mnofault);
         flts=flts->next;
+    }
+    if(*nfp != fstart+1){
+      printf("Faults have been initialised but count is wrong, stopping. fstart+1=%i\n",
+        fstart+1);
+      return(1);
     }
 
 // reset fault boundary conditions from previous stored attributes (defined real)
-// external boundary conditions have been reset earlier before faults added
-// every second point was re-initiated by createafault; no point attribute exists
-
-    if (npat>=5) {
- // printf("vnofault = %i, newvert = %i nbpfinal = %i\n",vnofault,newvert,nbpfinal);
-      for (i=vnofault+1;i<vnofault+1+2*newvert;i=i+2) {       // for fault vertices
-        j=ibc[i]-1;
-        qbnd[i+1]=qbnd[i]=out.pointattributelist[j*npat];
-        qbnd[i+1+nbpfinal]=qbnd[i+nbpfinal]=out.pointattributelist[j*npat+1];
-        itp1=(int)ceilf((float)(out.pointattributelist[j*npat+2]));
-        itp2=(int)ceilf((float)(out.pointattributelist[j*npat+3]));
-        ibctyp[i+1]=ibctyp[i]=itp1;
-        ibctyp[i+1+nbpfinal]=ibctyp[i+nbpfinal]=itp2;
- /*     printf("tri_remesh: i = %i ibc[i] = %i ibctyp[i], [i+nbpfinal] = %i %i qbnd = %f %f\n",
-        	        i,ibc[i],ibctyp[i],ibctyp[i+nbpfinal],qbnd[i],qbnd[i+nbpfinal]);
-        printf("tri_remesh: i = %i ibc[i] = %i ibctyp[i], [i+nbpfinal] = %i %i qbnd = %f %f\n",
-        	        i+1,ibc[i+1],ibctyp[i+1],ibctyp[i+1+nbpfinal],qbnd[i+1],qbnd[i+1+nbpfinal]); */
-      }
- // printf("mnofault = %i, nbpfinal = %i newvert = %i\n",mnofault,nbpfinal,newvert);
-      for (i=mnofault+1;i<nbpfinal;i=i+2) {        // for fault midpoints
-        j=ibc[i]-newvert-1;
-        qbnd[i+1]=qbnd[i]=out.pointattributelist[j*npat];
-        qbnd[i+1+nbpfinal]=qbnd[i+nbpfinal]=out.pointattributelist[j*npat+1];
-        itp1=(int)ceilf((float)(out.pointattributelist[j*npat+2]));
-        itp2=(int)ceilf((float)(out.pointattributelist[j*npat+3]));
-        ibctyp[i+1]=ibctyp[i]=itp1;
-        ibctyp[i+1+nbpfinal]=ibctyp[i+nbpfinal]=itp2;
- /*     printf("tri_remesh: i = %i ibc[i] = %i ibctyp[i], [i+nbpfinal] = %i %i qbnd = %f %f\n",
-        	        i,ibc[i],ibctyp[i],ibctyp[i+nbpfinal],qbnd[i],qbnd[i+nbpfinal]);
-        printf("tri_remesh: i = %i ibc[i] = %i ibctyp[i], [i+nbpfinal] = %i %i qbnd = %f %f\n",
-        	        i+1,ibc[i+1],ibctyp[i+1],ibctyp[i+1+nbpfinal],qbnd[i+1],qbnd[i+1+nbpfinal]); */
+// points are treated as consecutive pairs, as that is how they are packed in ifbc1,2
+// point attributes only exist for the first point in each pair, but will be applied to
+// both points, except in case of fault ends.
+// alsot to check if a terminating fault is correctly dealt with by following
+    for (i=0; i < *nfp; i=i+2){
+      ifp1=ifbc1[i];           //  primary node entry is +ve
+      ifp2=-ifbc1[i+1];        //  secondary node of pair is -ve
+      ifq1=ifbc2[i];
+      ifq2=ifbc2[i+1];
+//  if a vertex node pair
+      if(ifq1 < vtxend){
+	jf=ifp1-1;
+        qbnd[ifq1]=out.pointattributelist[jf*npat];
+        qbnd[ifq1+nbpfinal]=out.pointattributelist[jf*npat+1];
+        ibctyp[ifq1]=(int)(out.pointattributelist[jf*npat+2]+0.001);
+        ibctyp[ifq1+nbpfinal]=(int)(out.pointattributelist[jf*npat+3]+0.001);
+//      printf("tri_remesh: i = %5i node = %6i ex, ey = %9f % 9f ibctyp = %4i %4i qbnd = %9f %9f\n",
+//        i,ifp1,ex[ifp1-1],ey[ifp1-1],ibctyp[ifq1],ibctyp[ifq1+nbpfinal],qbnd[ifq1],qbnd[ifq1+nbpfinal]);
+//   set the same attributes on secondary vertex nodes (unless on prior connection)
+        qbnd[ifq2]=qbnd[ifq1];
+        qbnd[ifq2+nbpfinal]=qbnd[ifq1+nbpfinal];
+        ibctyp[ifq2]=ibctyp[ifq1];
+        ibctyp[ifq2+nbpfinal]=ibctyp[ifq1+nbpfinal];
+//      printf("tri_remesh: i = %5i node = %6i ex, ey = %9f % 9f ibctyp = %4i %4i qbnd = %9f %9f\n",
+//          i+1,ifp2,ex[ifp2-1],ey[ifp2-1],ibctyp[ifq2],ibctyp[ifq2+nbpfinal],qbnd[ifq2],qbnd[ifq2+nbpfinal]);
+//   for the duplcate node on a prior connection lock to the primary node
+        if((ibctyp[ifq1] < 3) || (ibctyp[ifq1+nbpfinal] < 3)){
+  	  ibctyp[ifq2]=11;
+  	  ibctyp[ifq2+nbpfinal]=11;
+//        printf("tri_remesh: i = %5i node = %6i ex, ey = %9f % 9f ibctyp = %4i %4i qbnd = %9f %9f\n",
+//          i+1,ifq2,ex[ifp2-1],ey[ifp2-1],ibctyp[ifq2],ibctyp[ifq2+nbpfinal],qbnd[ifq2],qbnd[ifq2+nbpfinal]);
+	}
       }
     }
- //  update the size parameters to include new pts 
+
+//  midpoint fault nodes are set locked (11) in createafault, but they are
+//  examined here in relation to neighbouring vertex nodes, and the setting
+//  may be changed to 21 dependent on neighbour node values
+//  fault midpoint nodes are in a contiguous block at the end of ibc
+//  type is set to 11 in createafault but may be reset to 21 using pointattributes
+//  printf("mnofault = %i, vnofault = %i nbpfinal = %i newseg = %i\n",mnofault,vnofault,nbpfinal,newseg);
+    nco=0;
+    for (i=mnofault+1; i<nbpfinal; i++) {
+      fmidno=ibc[i];
+//    if((ibctyp[i]==11) && (ibctyp[i+nbpfinal]==11)){   // not external boundary nodes
+	nco++;
+        fvertcw=ibcngh[i];                           // clockwise vertex neighbour
+        fvertac=ibcngh[i+nbpfinal];                  // anticlockwise vertex neighbour
+	kcw=0;
+	kac=0;
+        for (k=0; k<vnofault+2*newseg+1; k++){          // find the vertices in ibc
+	  if(ibc[k]==fvertcw) kcw=k;
+	  if(ibc[k]==fvertac) kac=k;
+        }
+	if(kcw*kac==0)printf("tri_remesh: can't find vertex nodes %i %i in ibc, kac, kcw = %i %i\n",
+			fvertcw,fvertac,kac,kcw);
+// if either vertex is unlocked, then unlock the midpoint using the same qbnd value
+// normal and tangential components are treated in sequence.
+  	if(ibctyp[kac]==21) {
+	  ibctyp[i]=21;
+	  qbnd[i]=qbnd[kac];  
+	}
+	if(ibctyp[kcw]==21) {
+	  ibctyp[i]=21;
+	  qbnd[i]=qbnd[kcw];  
+	}
+	if(ibctyp[kac+nbpfinal]==21) {
+	  ibctyp[i+nbpfinal]=21;
+	  qbnd[i+nbpfinal]=qbnd[kac+nbpfinal];  
+	}
+	if(ibctyp[kcw+nbpfinal]==21) {
+	  ibctyp[i+nbpfinal]=21;
+	  qbnd[i+nbpfinal]=qbnd[kcw+nbpfinal];  
+	}
+//    }
+//    else {
+//	printf("midpoint fault node fmidno %i i = %i has wrong type: %i %i\n",
+//			fmidno,i,ibctyp[i],ibctyp[i+nbpfinal]);
+//    }
+//      printf("tri_remesh: i = %5i fmidno = %6i ex, ey = %9f % 9f ibctyp = %4i %4i qbnd = %9f %9f\n",
+//       i,fmidno,ex[fmidno-1],ey[fmidno-1],ibctyp[i],ibctyp[i+nbpfinal],qbnd[i],qbnd[i+nbpfinal]);
+    }
+
+//  update the array size parameters to include new pts 
     *nn += newvert;
     *nmp += newseg;
     *nup += newbpts;
@@ -1182,6 +1179,7 @@ if  (mreg>0) {
        printf("********  Warning, check out above mismatch  *********\n");
     }
   }   // non-zero iflt
+
   *nbp=nbpfinal;
 
 //  printf("tri_remesh: k = %i ibc[k] = %i ibcngh[k], ibcngh[k+nbpfinal] = %i %i\n",
@@ -1210,6 +1208,18 @@ if  (mreg>0) {
   if (clrptr) out.regionlist=0;
   cleanio( &out );
 
+// output boundary conditions following remesh, if needed for debugging
+  if (*verb > 0){
+    outfile = fopen("BCSr", "w");
+    fprintf(outfile,"Array data from tri_remesh:\n");
+    fprintf(outfile,"   J   NODE      X         Y      ITYPX/Y    QBNDX     QBNDY     NGHcw/ac\n");
+    for(ipt = 0;ipt < nbpfinal; ipt++){
+         fprintf(outfile,"%4i %6i %9f %9f %4i %4i %9f %9f %6i %6i\n",ipt+1,ibc[ipt],ex[ibc[ipt]-1],
+	   ey[ibc[ipt]-1],ibctyp[ipt],ibctyp[ipt+nbpfinal],qbnd[ipt],qbnd[ipt+nbpfinal],ibcngh[ipt],
+	   ibcngh[ipt+nbpfinal]);
+    }
+    fclose(outfile);
+  }
   return 0;
 
 }   //end routine tri_remesh
@@ -1404,7 +1414,7 @@ int vcfrompoly_( float *vhb,float *ex,float *ey,int *lem,int * nor,
       ==0) return(1);
 //for (i = 0; i < inp.numberofregions; i++)
   for (i=0;i<inp.numberofregions+1;i++) { polys[i].numpts=0; polys[i].ppts=0; }
-  if((err = getpolydata(&inp,polys,inp.numberofregions))!=0)
+   if((err = getpolydata(&inp,polys,inp.numberofregions))!=0)
       return(err);
   /*
    * ivv    visc (vhb[i,1-7])    se (vhb[i,8])
@@ -1662,10 +1672,10 @@ void  print_triangulate_data(struct triangulateio *out)
 
 
 int createafault(struct triangulateio *out,
-                 int *mpstart, int *vstart, int *fstart,
+                 int *mpstart, int *vstart, int *fstart, int ibcmoffv,
                  int *lem, float *ex, float *ey,int *ne,
-                 int *ibc,int *ibcngh,int *ibctyp,int *ifbc1,int *ifbc2,
-                 int *iseg,
+                 int *ibc, int *ibcngh, int *ibctyp,
+		 int *ifbc1, int *ifbc2, int *ifeqv, int *iseg,
                  int nbpfinal,int *nbpext,int *nseg,int *vxtotal,int *mptotal,
                  struct gen_fault *flt)
 // this routine uses list of vertex fault nodes that are specific to a
@@ -1683,19 +1693,20 @@ int createafault(struct triangulateio *out,
     int nel1, nel2, j1curr, j1next, j2curr, j2next, j2midp, midpt1;
     int tmplem, tmpnxt, tmpmid, faultclosed=0;
     int vindex,mpindex;
-//  int vfirst, mfirst;
-    int ift1,ift2,igt1=0,igt2=0,jrp1,jrp2,jacw,jcwn,kn,ierr=0;
+    int vfirst, mfirst;
+    int ift1,ift2,igt1,igt2,ift1pr,ift2pr,igt1pr,igt2pr;
+    int jvac,jmac,jvcw,jmcw,igt1cw,igt2ac,kn,ierr=0;
     int counting=0, mounting=0;
     struct node *fltnode;
 
 //  check sizes of relevant arrays already defined as this routine may
 //  be repeatedly called to add additional fault boundaries
 //  we start adding vertex nodes at vindex and midpoint nodes at mpindex
-//  followingg operation done once before sequence of calls to createafault
+//  following operation done once before sequence of calls to createafault
     vindex=0;
     while (ibc[vindex]!=-1) vindex++;
     vindex--;
-//  vfirst=vindex+1;
+    vfirst=vindex+1;
     mpindex=nbpfinal-1;
     while (ibc[mpindex]==-1) mpindex--;
 //  printf("entering createafault: vindex = %i mpindex = %i nbpfinal = %i\n",vindex,mpindex,nbpfinal);
@@ -1730,15 +1741,16 @@ int createafault(struct triangulateio *out,
     curr=fltnode->id+1;
     for(k=0;k<nums;k++){
         next=fltnode->next->id+1;
-  //    printf("finding tris: k = %i curr = %i next = %i\n",k,curr,next);
+//      printf("finding tris: k = %i curr = %i next = %i\n",k,curr,next);
         newnext[2*k]=next;
         nelf=findTriangV(k,curr,next,lem,*ne,tri_1,tri_2);
+//	printf("createafault: k, curr, next, nelf = %i %i %i %i\n",k, curr, next, nelf);
         if (nelf!=2)  {
             printf("Can't find element for nodes k = %i curr = %i next = %i on fault %i\n",k,curr,next,fltid);
             ierr=1;
             if(*fstart > 0){
-  //    check if curr/next has been replaced by one of the newly added fault nodes; can be a problem
-  //    if current fault is being joined to an earlier fault on the wrong side.
+//    check if curr/next has been replaced by one of the newly added fault nodes; can be a problem
+//    if current fault is being joined to an earlier fault on the wrong side.
               for(kn = 0; kn < *fstart; kn++){
                  if(ifbc1[kn]==curr){
                     printf("Substituting fault pair node %i for node curr = %i\n",-ifbc1[kn+1],curr);
@@ -1777,21 +1789,21 @@ int createafault(struct triangulateio *out,
               fltid,first,last,nums);
     }
 
-  // set ift1 and/or ift2 if fault terminates on external boundary, first and last may be
+  // set ift1 and/or ift2 if fault terminates on prior boundary, first and last may be
   //  reversed relative to input sequence defined in polyfile
-    ift1 = 0;
-    ift2 = 0;
+    ift1=ift2=0;
+    igt1=igt2=0;
     if (!faultclosed){
-       for(k=0;k<vindex;k++) {
-          if(ibc[k]==first)ift1=k;
-          if(ibc[k]==last)ift2=k;
+      for(k=0;k<vindex;k++) {
+        if(ibc[k]==first){ift1=k; igt1=first;}
+        if(ibc[k]==last) {ift2=k; igt2=last;}
        }
+
   // add unattached internal fault end-points to IBC, IBCTYP arrays
        if(ift1){
           printf("     fault %i is connected to node %i on a prior boundary segment, ift1 = %i\n",
                        fltid,ibc[ift1],ift1);
-       }
-       else{
+       } else {
           vindex++;
           ibc[vindex]=first;
 	  counting++;
@@ -1802,8 +1814,7 @@ int createafault(struct triangulateio *out,
        if(ift2){
           printf("     fault %i is connected to node %i on a prior boundary segment, ift2 = %i\n",
                        fltid,ibc[ift2],ift2);
-       }
-       else{
+       } else {
           vindex++;
           ibc[vindex]=last;
 	  counting++;
@@ -1823,64 +1834,89 @@ int createafault(struct triangulateio *out,
    //   -----    -----curr----next----  at step i+1
    //   for open fault, end points not duplicated unless on prior boundary (ift1 / ift2)
 
-    for(i=0;i<nums;i++) {
+    for(i=0;i<nums;i++) {         // nums is number of fault segments added in this pass
 	nel1=tri_1[2*i];
 	j1curr=tri_1[2*i+1];
 	j1next=(j1curr+1) % 3;
 	curr=lem[6*nel1+j1curr];
 	next=lem[6*nel1+j1next];
- //     printf("createafault fltid = %i curr = %i next = %i\n",fltid,curr,next); 
-        if((i==0) && ift1){     // duplicate first point if node ift1 already in ibc
+//
+//  for a fault segment that begins on a pre-existing ibc node (ift1)
+        if((i==0) && ift1){
+//           printf("createafault fltid = %i curr = %i next = %i\n",fltid,curr,next); 
              (*fstart)++;
 	     vindex++;
-             ifbc1[*fstart]=ibc[ift1];
-             ibctyp[ift1]=11;
-             ibctyp[ift1+nbpfinal]=11;
-             ifbc2[*fstart]=vindex+1;
-             (*vstart)++;                 // new vertex node number of duplicate node
-	     ex[*vstart]=ex[curr-1];
-    	     ey[*vstart]=ey[curr-1];
+             ifbc1[*fstart]=igt1;                            // add existing node to ifbc1,ifbc2
+             ifbc2[*fstart]=ift1;
+	     ifeqv[*fstart]=(*fstart)+2;
+             (*vstart)++;                                    // duplicate vertex node entry
+	     ex[*vstart]=ex[igt1-1];
+    	     ey[*vstart]=ey[igt1-1];
 	     counting++;
-	     ibc[vindex]=igt1=*vstart+1;       // duplicate node added
-             ibctyp[vindex]=11;
+	     ibc[vindex]=*vstart+1;                          // duplicate node added to ibc
+	     ift1pr=vindex;                                  // values used to reconnect ibcgh
+	     igt1pr=*vstart+1;
+	     igt1cw=next;
+//           ibctyp[vindex]=ibctyp[ift1];                    // duplicate boundary conditions
+//           ibctyp[vindex+nbpfinal]=ibctyp[ift1+nbpfinal];
+             ibctyp[vindex]=11;                              // duplicate boundary conditions
              ibctyp[vindex+nbpfinal]=11;
              (*fstart)++;
-             ifbc1[*fstart]=-(*vstart+1);
-             ifbc2[*fstart]=ibc[ift1];
+             ifbc1[*fstart]=-(*vstart)-1;                    // add duplicate node to ifbc1,ifbc2
+             ifbc2[*fstart]=vindex+1;                     // negative value flags end duplicate points
+	     ifeqv[*fstart]=(*fstart);
              nel2=tri_2[0];
 	     j2next=tri_2[1];
 	     j2curr=(j2next+1) % 3;
 	     lem[6*nel2+j2curr]=*vstart+1;  // reset lem value for 'first' duplicate node
         }
-   //   printf("i = %i nel1 = %i, curr = %i, next = %i last = %i\n",i,nel1,curr,next,last);
+//   printf("i = %i nel1 = %i, curr = %i, next = %i last = %i\n",i,nel1,curr,next,last);
     
-   //   for the existing vertex node on the + side of the fault
-	if((next != last) || faultclosed){
-	     vindex++;                    // ibc address
-	     counting++;
-	     ibc[vindex]=next;            // add existing node to ibc; ift2 node already present
-             ibctyp[vindex]=11;
-             ibctyp[vindex+nbpfinal]=11;
-        }
-	if((next != last) || faultclosed || ift2){
-             (*fstart)++;                 // add ifbc1 entries, also if boundary reached
-             ifbc1[*fstart]=next;
-             ifbc2[*fstart]=vindex+1;
-   //   now define and add the entries for the duplicate vertex node in tri_2
-   //   vertex lem entries will be reset after loop i finished in multiple elements
-	     (*vstart)++;                 // new vertex node number of duplicate node
+//     vertex lem entries will be reset after loop i finished in multiple elements
+    	if((next != last) || ift2){
+	     (*vstart)++;                    // new vertex node number and coordinates
+             ex[*vstart]=ex[next-1];
+             ey[*vstart]=ey[next-1];
+	     if(next == igt2){
+	       (*fstart)++;                  // node already in ibc, here added to ifbc1
+	       ifbc1[*fstart]=igt2;
+	       ifbc2[*fstart]=ift2;
+	       ifeqv[*fstart]=(*fstart)+2;
+               (*fstart)++;                  // add the duplicate node into ifbc1
+               ifbc1[*fstart]=-(*vstart)-1;
+               ifbc2[*fstart]=vindex;     // negative value flags end point (duplicate)
+	       ifeqv[*fstart]=(*fstart);     // used in tri_remesh to set BC's
+	     }
+	     else{                           // node exists, but not yet in ibc
+               vindex++;                     // ibc address
+	       ibc[vindex]=next;             // add existing node to ibc
+	       counting++;
+               (*fstart)++;                  // add ifbc1 entries for existing node
+               ifbc1[*fstart]=next;
+               ifbc2[*fstart]=vindex+1;
+	       ifeqv[*fstart]=(*fstart)+2;
+               (*fstart)++;                  // now for duplicate node
+               ifbc1[*fstart]=-(*vstart)-1;
+               ifbc2[*fstart]=vindex+2;
+	       ifeqv[*fstart]=(*fstart);
+             }
+	     vindex++;                       // add the duplicate node into ibc
 	     nnxt=newnext[2*i+1]=*vstart+1;
-	     ex[*vstart]=ex[next-1];
-	     ey[*vstart]=ey[next-1];
-	     vindex++;                    // ibc address
-	     counting++;
 	     ibc[vindex]=nnxt;
-	     if((next==last)&&(ift2))igt2=nnxt;
-             ibctyp[vindex]=11;
-             ibctyp[vindex+nbpfinal]=11;
-             (*fstart)++;
-             ifbc1[*fstart]=-(*vstart+1);
-             ifbc2[*fstart]=vindex+1;
+	     counting++;
+             if(next == igt2){               // use existing bc of attaching node
+               ibctyp[vindex]=ibctyp[ift2];
+               ibctyp[vindex+nbpfinal]=ibctyp[ift2+nbpfinal];
+	       ift2pr=vindex;
+	       igt2pr=nnxt;
+	       igt2ac=curr;
+             }
+             else{                           // set fault conditions for locked fault
+               ibctyp[vindex-1]=11;
+               ibctyp[vindex-1+nbpfinal]=11;
+               ibctyp[vindex]=11;
+               ibctyp[vindex+nbpfinal]=11;
+             }
 
 	   //   resetting vertex lem entries for 'next' node, find other relevant elements.
 	   //   step from element to element using midpoints until fault or boundary found again
@@ -1918,17 +1954,17 @@ int createafault(struct triangulateio *out,
                          }
 		      }
 	     }                                              // end of steps through adjacent elements
-	}                                                   //  if((next != last) || faultclosed)
+	}                                                   // if((next != last) || ift2)
     }                                                       // end of main:loop on segment: i
     *vxtotal=vindex;
- // printf("vindex = %i vstart = %i after main vertex loop\n",vindex,*vstart);
+//  printf("vindex = %i vstart = %i after main vertex loop\n",vindex,*vstart);
 
 	 
-   //   treatment of midpoints separated from vertices, as midpoints used to fix vertices
- // mfirst=mpindex;       // save for use in next operation
+//     treatment of midpoints separated from vertices, as midpoints used to fix vertices
+    mfirst=mpindex;       // save for use in next operation
     for(i=0;i<nums;i++) {
 
-   //   for the existing midpoint node on the + side of the fault
+//      for the existing midpoint node on the + side of the fault
         mpindex++;
         midpt1=midpts[i];
 	mounting++;
@@ -1938,55 +1974,55 @@ int createafault(struct triangulateio *out,
         (*fstart)++;
         ifbc1[*fstart]=midpt1;
         ifbc2[*fstart]=mpindex+1;
+        ifeqv[*fstart]=(*fstart)+2;
 	nel1=tri_1[2*i];
 	j1curr=tri_1[2*i+1];
 	j1next=(j1curr+1) % 3;
 	curr=lem[6*nel1+j1curr];
 	next=lem[6*nel1+j1next];
-        ibcngh[mpindex]=curr;
-        ibcngh[mpindex+nbpfinal]=next;
-   //   printf("midpoint1: mpindex = %i midpt1 = %i ibcngh1 =%i ibcngh2 = %i\n",mpindex,midpt1,
-   //                           ibcngh[mpindex],ibcngh[mpindex+nbpfinal]);
-   //   now define and add the entries for the duplicate midpoint node in tri_2
+        ibcngh[mpindex]=next;
+        ibcngh[mpindex+nbpfinal]=curr;
+//   printf("midpoint1: mpindex = %i midpt1 = %i ibcngh1 =%i ibcngh2 = %i\n",mpindex,midpt1,
+//                           ibcngh[mpindex],ibcngh[mpindex+nbpfinal]);
+//   now define and add the entries for the duplicate midpoint node in tri_2
         (*mpstart)++;
         ex[*mpstart]=ex[midpt1-1];
         ey[*mpstart]=ey[midpt1-1];
         mpindex++;
 	mounting++;
-        ibc[mpindex]=*mpstart+1;
+        ibc[mpindex]=(*mpstart)+1;
         ibctyp[mpindex]=11;
         ibctyp[mpindex+nbpfinal]=11;
         (*fstart)++;
-        ifbc1[*fstart]=-(*mpstart+1);
+        ifbc1[*fstart]=-(*mpstart)-1;
         ifbc2[*fstart]=mpindex+1;
+        ifeqv[*fstart]=(*fstart);
         nel2=tri_2[2*i];
         j2next=tri_2[2*i+1];
         j2curr=(j2next+1) % 3;
 	curr=lem[6*nel2+j2curr];
 	next=lem[6*nel2+j2next];
-        ibcngh[mpindex]=next;
-        ibcngh[mpindex+nbpfinal]=curr;
-   //   printf("midpoint2: mpindex = %i midpt1 = %i ibcngh1 =%i ibcngh2 = %i\n",mpindex,midpt1,
-   //                           ibcngh[mpindex],ibcngh[mpindex+nbpfinal]);
+        ibcngh[mpindex]=curr;
+        ibcngh[mpindex+nbpfinal]=next;
+//   printf("midpoint2: mpindex = %i midpt1 = %i ibcngh1 =%i ibcngh2 = %i\n",mpindex,midpt1,
+//                           ibcngh[mpindex],ibcngh[mpindex+nbpfinal]);
 
-   //   reset the lem entry for the new midpoint node  (only one, unlike vertices}
+//   reset the lem entry for the new midpoint node  (only one, unlike vertices}
         nel2=tri_2[2*i];
         j2next=tri_2[2*i+1];
         j2midp=3 + ((j2next+4) % 3);
         lem[6*nel2+j2midp]=*mpstart+1;
-   //	printf("createafault: nel2 = %i j2midp = %i *mpstart+1 = %i\n",nel2,j2midp,*mpstart+1);
-   //   add in the new iseg entries - original ones still defined
-        iseg[(*nseg)*3]=curr;
-        iseg[(*nseg)*3+1]=next;                            // end of current segment
-	iseg[(*nseg)*3+2]=fltid;                           // segment label
-	(*nseg)++;
-   //  if ift1 or ift2 are non-zero, existing segment end points need to be changed; see below
+//	printf("createafault: nel2 = %i j2midp = %i *mpstart+1 = %i\n",nel2,j2midp,*mpstart+1);
+//   the iseg array is no longer modified in this subroutine
+//      iseg[(*nseg)*3]=curr;
+//      iseg[(*nseg)*3+1]=next;                            // end of current segment
+//	iseg[(*nseg)*3+2]=fltid;                           // segment label
+//	(*nseg)++;
     }     // end of midpoint loop on segment: i
     *mptotal=mpindex;
 
-   //   now set / reset the ibcngh arrays for the vertex nodes and
-   //   note that special treatment for ends of unattached faults
-   //	printf("createafault: end0 = %i end2 = %i\n",ibc[vfirst],ibc[*vxtotal]);
+//   now set / reset the ibcngh arrays for the vertex nodes and
+//   note that special treatment for ends of unattached faults
     for(i=0; i<nums; i++){
 	nel1=tri_1[2*i];
 	j1curr=tri_1[2*i+1];
@@ -1998,111 +2034,80 @@ int createafault(struct triangulateio *out,
 	next1=lem[6*nel1+j1next];
 	curr2=lem[6*nel2+j2curr];
 	next2=lem[6*nel2+j2next];
-   //	printf("createafault: i = %i curr1 = %i curr2 = %i next1 = %i next2 = %i\n",
-   //			i,curr1,curr2,next1,next2);
-   //    attached nodes should be addressed by the following sets of conditions
-        for(j=0; j<*vxtotal+1; j++){                  // end nodes may be before vfirst
+//   	printf("createafault: i = %i curr1 = %i curr2 = %i next1 = %i next2 = %i\n",
+//                            i,curr1,curr2,next1,next2);
+//    attached nodes should be addressed by the following sets of conditions
+        for(j=0; j<*vxtotal+1; j++){               // end nodes may be before vfirst
            if (ibc[j]==curr1){
-              ibcngh[j+nbpfinal]=next1;             // anti-clockwise connection
+              ibcngh[j]=next1;                     // next1 is clockwise to curr1
 	   }
-	   else if (ibc[j]==next1){                 // clockwise connection
-              ibcngh[j]=curr1;
+	   else if (ibc[j]==next1){
+              ibcngh[j+nbpfinal]=curr1;            // curr1 is anti-clockwise to next1
 	   }
 	   else if (ibc[j]==next2){ 
-              ibcngh[j]=curr2;                      // clockwise connection
+              ibcngh[j]=curr2;                      // curr2 is clockwise to next2
 	   }
 	   else if (ibc[j]==curr2){
-              ibcngh[j+nbpfinal]=next2;             // anti-clockwise connection
+              ibcngh[j+nbpfinal]=next2;             // next2 is anti-clockwise to curr2
 	   }
     //   connections on unattached node: curr1 and curr2 should be the same node
 	   if((i==0) && (curr1==curr2) && (ibc[j]==curr1)){
               ibcngh[j+nbpfinal]=next1;             // anti-clockwise connection
               ibcngh[j]=next2;                      // clockwise connection
+    //	      printf("setting ibcngh for i = 0 fault tip at node %i\n",ibc[j]);
            }
     //   connections on unattached node: next1 and next2 should be the same node
 	   if((i==(nums-1)) && (next1==next2) && (ibc[j]==next1)){
               ibcngh[j+nbpfinal]=curr2;             // anti-clockwise connection
               ibcngh[j]=curr1;                      // clockwise connection
+    //	      printf("setting ibcngh for i = nums-1 fault tip at node %i\n",ibc[j]);
            }
         }
     }
 
-   // final task, locate and replace entries in ibcngh and iseg where igt1(2) should replace
-   // ibc[ift1(2)]. Search all entries in ibcngh; only the ones that need to be changed will be found
-   // we then look to replace the same nodes in the seg array for external boundary
-   // these operations apply when fault terminates on a pre-defined structure
+// reset ibcngh entries where the current fault attaches to a pre-existing boundary at igt1
+
     if(ift1){
-       jrp1=0;
-       jcwn=0;
-       for (j=0; j<*vxtotal+1; j++){
-          if(ibc[j]==igt1) jrp1=j;                 // position in ibc of node igt1
-          if(ibcngh[j]==ibc[ift1]) jcwn=j;         // position of clockwise node to ift1
+//	printf("search ranges: vertices: 1 to vfirst = %i midpoints: *vxtotal %i to mfirst = %i\n",
+//			vfirst,*vxtotal+1,mfirst+1);
+       jvcw=jmcw=0;
+       for (j=0; j<vfirst; j++){                     // check vertices in pre-existing structure
+          if(ibcngh[j+nbpfinal]==igt1) jvcw=j;       // index of clockwise vertex to igt1
+       }  
+       for (j=*vxtotal; j<mfirst; j++){          // check midpoints in pre-existing structure
+          if(ibcngh[j+nbpfinal]==igt1) jmcw=j;       // index of clockwise midpoint to igt1
        }   	  
-       if((igt1*jrp1*jcwn)==0){
-          printf("problem resetting node connection in createafault: ift1, igt1, jrp1,jcwn = %ii %i %i %i\n",
-			  ift1,igt1,jrp1,jcwn);
-       }
-  //   printf("IFT1 = %i igt1 = %i jrp1 = %i jcwn = %i ibc[jrp1] = %i ibcngh[jcwn] = %i\n",
-  //           ift1,igt1,jrp1,jcwn,ibc[jrp1],ibcngh[jcwn]);
-       ibcngh[jcwn+nbpfinal]=igt1;                 // new anti-clockwise link to jcwn
-       ibcngh[jrp1]=ibc[jcwn];                     // new clockwise link to igt1
-
-       for (k=0; k<*nseg; k++){
-          if(iseg[k*3+2]!=fltid){                  // if a prior structure
-             if((iseg[k*3]==ibc[ift1])&&(iseg[k*3+1]==ibc[jcwn]))
-                          iseg[k*3]=igt1;
-             if((iseg[k*3+1]==ibc[ift1])&&(iseg[k*3]==ibc[jcwn]))
-                          iseg[k*3+1]=igt1;
-          }        // fltid ok
-       }           // for k
+       ibcngh[jvcw+nbpfinal]=igt1pr;                 // new anti-clockwise link to jvcw
+       ibcngh[jmcw+nbpfinal]=igt1pr;                 // new anti-clockwise link to jmcw
+       ibcngh[ift1pr]=ibc[jvcw];                     // new clockwise link to ift1pr
+       ibcngh[ift1]=igt1cw;     		     // new clockwise link to ift1
+       if(jvcw*jmcw==0)
+	  printf("createafault problem: igt1 = %i igt1pr = %i igt1cw = %i jvcw = %i jmcw = %i\n",
+		       igt1,igt1pr,igt1cw,jvcw,jmcw);
     }              // if ift1
-    if(ift2){
-       jrp2=0;
-       jacw=0;
-       for (j=0; j<*vxtotal+1; j++){
-          if(ibc[j]==igt2) jrp2=j;                    // position in ibc of node igt2
-          if(ibcngh[j+nbpfinal]==ibc[ift2]) jacw=j;  // position of anti-clockwise node to ift2
-       }
-       if((igt2*jrp2*jacw)==0){
-          printf("problem resetting node connection in createafault: ift2, igt2, jrp2, jacw = %i %i %i %i\n",
-			  ift2,igt2,jrp2,jacw);
-       }
-   //  printf("IFT2 = %i igt2 = %i jrp2 = %i jacw = %i ibc[jrp2] = %i ibcngh[jacw] = %i\n",
-   //          ift2,igt2,jrp2,jacw,ibc[jrp2],ibcngh[jacw]);
-       ibcngh[jacw]=igt2;                          // new clockwise link to jacw
-       ibcngh[jrp2+nbpfinal]=ibc[jacw];            // new anti-clockwise link to igt2
 
-       for (k=0; k<*nseg; k++){
-          if(iseg[k*3+2]!=fltid){                  // if a prior structure
-             if((iseg[k*3]==ibc[ift2])&&(iseg[k*3+1]==ibc[jacw]))
-                          iseg[k*3]=igt2;
-             if((iseg[k*3+1]==ibc[ift2])&&(iseg[k*3]==ibc[jacw]))
-                          iseg[k*3+1]=igt2;
-          }        // fltid ok
-       }           // for k
+// reset ibcngh entries where the current fault attaches to a pre-existing boundary at igt2
+
+    if(ift2){
+       jvac=jmac=0;
+       for (j=0; j<vfirst; j++){                     // check vertices in pre-existing structure
+          if(ibcngh[j]==igt2) jvac=j;                // index of anti-clockwise vertex to igt2
+       }
+       for (j=*vxtotal; j<mfirst; j++){          // check midpoints in pre-existing structure
+          if(ibcngh[j]==igt2) jmac=j;                // index of anti-clockwise midpoint to igt1
+       }   	  
+       ibcngh[jvac]=igt2pr;                          // new clockwise link to jvac
+       ibcngh[jmac]=igt2pr;                          // new clockwise link to jmcw
+       ibcngh[ift2pr+nbpfinal]=ibc[jvac];            // new anti-clockwise link to ift2pr
+       ibcngh[ift2+nbpfinal]=igt2ac;  		     // new anti-clockwise link to ift2
+       if(jvac*jmac==0)
+	  printf("createafault problem: igt2 = %i igt2pr = %i igt2ac = %i jvac = %i jmac = %i\n",
+		       igt2,igt2pr,igt2ac,jvac,jmac);
     }              // if ift2
 
-  //printf("createafault: counting = %i mounting = %i \n",counting,mounting);
-  // next block only for checking iseg if problems arise
- /* for(i=0; i<(*nseg); i++){
-       printf("i = %i iseg[3*i] = %i iseg[3*i+1] = %i iseg[3*i+2] = %i\n",
-               i,iseg[3*i],iseg[3*i+1],iseg[3*i+2]);
-    }
-
-  // next block only for checking ibcngh if problems arise
-    printf("new vertexnodes, vfirst = %i *vxtotal = %i \n",vfirst,*vxtotal);
-    for(i=vfirst; i<*vxtotal+1; i++){
-       printf("i = %i ibc[i] = %i ibcngh[i] = %i ibcngh[i+nbpfinal] = %i\n",
-               i,ibc[i],ibcngh[i],ibcngh[i+nbpfinal]);
-    } */
-
- /* int newmnodes=nums*2;
-    printf("new midpoint nodes : %i\n",newmnodes);
-    for(i=0; i<newmnodes; i++){
-       itmp=mfirst+1+i;
-       printf("itmp = %i ibc[itmp] = %i ibcngh[itmp] = %i ibcngh[itmp+nbpfinal] = %i\n",
-               itmp,ibc[itmp],ibcngh[itmp],ibcngh[itmp+nbpfinal]);
-    } */
+// if there are inconsistencies in the ibc array, set VERBOSE = 1 in OUTPUT statement
+// of basil input file and the file BCS will be produced (BCSr) if a remesh operation
+// the use an awk command to find node connections within the file
 
     if (tri_1) free(tri_1);
     if (tri_2) free(tri_2);
@@ -2205,7 +2210,7 @@ int findfltpts(struct gen_fault **fltlist,struct triangulateio *out,
 // entries produced in fltlist are all one less than node numbers used
 //  in fortran entities
 {
-    int i,j,m,next,id,fltid,nbseg=0,err=0;
+    int i,j,m,next,id,fltid,nbseg=0,nfseg=0,niseg=0,err=0;
     int finished, segno;
     int fltMIN, fltMAX, extMIN, extMAX;
     int *fltsegs=NULL;
@@ -2218,23 +2223,33 @@ int findfltpts(struct gen_fault **fltlist,struct triangulateio *out,
     *nfp = *newvert = *newseg = *newibc = 0;
     bndfltlimits_(&fltMIN,&fltMAX);
     bndextlimits_(&extMIN,&extMAX);
-    for (i = 0; i < out->numberofsegments; i++) {
-	// count the number of segments in the external boundary
-        if (out->segmentmarkerlist[i] >= extMIN    &&
-                out->segmentmarkerlist[i] <= extMAX &&
-                    !in_flt_list(*fltlist,out->segmentmarkerlist[i])) {
+// printf("extMIN = %i extMAX = %i fltMIN = %i fltMAX = %i\n",extMIN,extMAX,fltMIN,fltMAX);
+
+// following block had to be reorganised to make the counters work as intended
+      for (i = 0; i < out->numberofsegments; i++) {
+// set up a list for each fault segment and count number of segments
+        if (((out->segmentmarkerlist[i]) >= fltMIN)  &&
+                 ((out->segmentmarkerlist[i]) <= fltMAX)){
+            nfseg++;
+            if(!in_flt_list(*fltlist,out->segmentmarkerlist[i])) {
+               if ((nfnode=newfltnode(out->segmentmarkerlist[i]))==NULL) return(1);
+               insert_in_flt_list(fltlist,nfnode);
+	    }
+        }
+// count the number of segments in the external boundary
+	else if (((out->segmentmarkerlist[i]) >= extMIN) &&
+                ((out->segmentmarkerlist[i]) <= extMAX) &&
+                !in_flt_list(*fltlist,out->segmentmarkerlist[i])) {
 	    nbseg++;
         }
-        // initialise a list for each fault with distinct label
-        if (out->segmentmarkerlist[i] >= fltMIN    &&
-                out->segmentmarkerlist[i] <= fltMAX &&
-                    !in_flt_list(*fltlist,out->segmentmarkerlist[i])) {
-            if ((nfnode=newfltnode(out->segmentmarkerlist[i]))==NULL)
-                    return(1);
-            insert_in_flt_list(fltlist,nfnode);
+// count the number of other boundary segments
+        else {
+            niseg++;
         }
     }
-    printf("External boundary has %i segments = no. of midpoints = no. of vertices\n",nbseg);
+    printf("After mesh generation external boundary has %i segments = midpoints = vertices\n",nbseg);
+    printf("Faults have %i segment pairs and other internal boundaries have %i segments\n",nfseg,niseg);
+
     list=*fltlist;
     while (list && !err) {
       
@@ -2287,7 +2302,6 @@ int findfltpts(struct gen_fault **fltlist,struct triangulateio *out,
         if((ift1==0) && (ift2==0)){
            id=out->segmentlist[fltsegs[1]*2];
            *nfp = *nfp + 4*news;              // space for fault arrays
-           *newibc = *newibc + 4*news;        // space for IBC 
            *newvert=*newvert+news;            // space for EX,EY
         }
 
@@ -2298,15 +2312,18 @@ int findfltpts(struct gen_fault **fltlist,struct triangulateio *out,
         else {
 	   id = ift1;
            *nfp = *nfp + 4*news - 2;          // space for fault arrays
-           *newibc = *newibc + 4*news;        // space for IBC 
            *newvert=*newvert+news-1;          // space for EX,EY
         }
-	*newseg=*newseg+news;                 // space for ISEG
+  	*newseg=*newseg+news;                 // no. of new segments, used for several arrays
+        *newibc = *newibc + 4*news;           // space for IBC 
         *ibcmoffv = *ibcmoffv + 2*news;       // IBC offset V-M
 
-   //  check if fault end points are also on an earlier defined boundary
+   //  check if each fault end point is also on an earlier defined boundary
    //  (i.e. lesser fltid), in which case additional two entries needed in
    //  fault arrays and for EX,EY, extra node in ibc already taken care of
+   //
+   //  For each type of fault, IBC gets 4*news new entries
+  
         if(ift1){
            found=0;
            for (i = 0; i < out->numberofsegments && !found; i++) {
@@ -2530,7 +2547,7 @@ void insert_node(struct node *nnode,struct node **list,
     }
 }
 
-/*  find the one or two elements that include two specific vertex nodes  */
+/*  find the one or two elements that include segment with two specific vertex nodes  */
 
 int findTriangV(int count,int start,int end,int *lem, int ne, int *tri_1, int *tri_2)
 {
@@ -2541,14 +2558,14 @@ int findTriangV(int count,int start,int end,int *lem, int ne, int *tri_1, int *t
       for (j=0;j<3;j++){
          jp1=(j+1) % 3;
          if ((lem[i*6+j]==start)  && (lem[i*6+jp1]==end)){
-   //       if(want==1)printf("fTnA count = %i start = %i end = %i ne = %i\n",count,start,end,ne);
+//          printf("fTnA count = %i start = %i end = %i ne = %i\n",count,start,end,ne);
             tri_1[cnt]=i;
             tri_1[cnt+1]=j;
             found++;
             if(found==2)return 2;
          }
          else if ((lem[i*6+j]==end) && (lem[i*6+jp1]==start)) {
-   //       if(want==1)printf("fTnB count = %i start = %i end = %i ne = %i\n",count,start,end,ne);
+//          printf("fTnB count = %i start = %i end = %i ne = %i\n",count,start,end,ne);
             tri_2[cnt]=i;
             tri_2[cnt+1]=j;
             found++;

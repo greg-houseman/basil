@@ -289,6 +289,8 @@ static valid_terms colmap_terms[] = {
 				{"greyscale",GREY_MAP},
                                 {"standard", STD_MAP},
                                 {"absolute", ABS_MAP},
+				{"hawaii",HAW_MAP},
+				{"roma",ROM_MAP},
                                 { NULL} };
 static valid_terms linestyle_terms[] = { 
 				{"solid",SOLID},

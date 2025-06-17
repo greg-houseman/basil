@@ -279,7 +279,8 @@ int CartesianToPolar(double x, double y, double z,
 
 double polyArea(double *xy, int n)
 {
-    register int i, j;
+//  register int i, j;
+    int i,j;
     double ai, area = 0;
     if (n < 3) return 0;
     for (i = n-1, j = 0; j < n; i = j, j++) {

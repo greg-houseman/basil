@@ -15,8 +15,13 @@ export PATH=$PATH:$BASILPATH/bin\
 export MANPATH=$MANPATH:$BASILPATH\
 The linux compilation script install.sh uses:\
 xmkmf (apt-get install xutils-dev)\
+gcc (apt-get install gcc)\
+make (apt-get install make)\
+gfortran (apt-get install gfortran)\
+g++ (apt-get install g++)\
 and the sybil program GUI uses:\
 OpenMotif (apt-get install libmotif-dev)\
+libXext (apt-get install libxext-dev)\
 An alternative compilation script ./InstallS does not require xmkmf and 
 has been used on MacOS systems. Successful compilation using InstallS
 usually requires editing of the files basilsrc/MakeSimple and sybilsrc/MakeSimple in order to specify correct location of libraries.

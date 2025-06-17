@@ -18,6 +18,8 @@ C
       DOUBLE PRECISION BY(3),CX(3),CNL,COOL(3),TRI,X1,X2,X3,Y1,Y2,Y3
 C     DOUBLE PRECISION A0(3),DPX1,DPX2,DPX3,DPY1,DPY2,DPY3
 C
+C     WRITE(*,*)'Interpolating the SSQ array'
+C     CALL SMATPP(S,NUP)
       HSX=(XCMAX-XCMIN)/FLOAT(NX3-3)
       HSY=(YCMAX-YCMIN)/FLOAT(NY3-3)
       EPSL=1.e-2/FLOAT(NX3-3)
@@ -60,13 +62,6 @@ C
           IF(X1.GT.XMAX)XMAX=X1
           IF(Y1.LT.YMIN)YMIN=Y1
           IF(Y1.GT.YMAX)YMAX=Y1
-C     DPX1=X1
-C     DPX2=X2
-C     DPX3=X3
-C     DPY1=Y1
-C     DPY2=Y2
-C     DPY3=Y3
-C     A0(K)=DPX2*DPY3 - DPX3*DPY2
           BY(K)=Y2 - Y3
           CX(K)=X3 - X2
    20   CONTINUE
@@ -149,6 +144,8 @@ C
    70     CONTINUE
    75   CONTINUE
    80 CONTINUE
+C     WRITE(*,*)'Interpolation finished, RMESH is'
+C     CALL SMATPP(RMESH,NP3)
       RETURN
       END
 
@@ -301,3 +298,62 @@ C
 C
 C   subroutine NTRPLT2 deleted as apparently unused, saved in 
 C   file ntrplt2.f in case later needed, but remove after 12/2014
+C
+      SUBROUTINE SMATPP(ARR,NK)
+C
+C    subroutine to provide diagnostic data for a single precision array 
+C               for use in debugging
+C
+      DIMENSION ARR(NK)
+C
+      AMIN=ARR(1)
+      JMIN=1
+      AMAX=ARR(1)
+      JMAX=1
+      NZERO=0
+      NSUM=0
+      NNANS=0
+      ASUM=0.0
+      VAR=0.0
+      AVE=0.0
+C
+C    find max, min, average of ARR
+C
+      DO J=1,NK
+        IF(ISNAN(ARR(J)))THEN
+          NNANS=NNANS+1
+        ELSE
+          IF(ARR(J).EQ.0)THEN
+            NZERO=NZERO+1
+          ELSE
+            ASUM=ASUM+ARR(J)
+            NSUM=NSUM+1
+          ENDIF
+          IF(ARR(J).GT.AMAX)THEN
+            AMAX=ARR(J)
+            JMAX=J
+          ELSEIF(ARR(J).LT.AMIN)THEN
+            AMIN=ARR(J)
+            JMIN=J
+          ENDIF
+        ENDIF
+      ENDDO
+      IF(NSUM.GT.0)AVE=ASUM/FLOAT(NSUM)
+C
+C    get rms variation
+C
+      DO J=1,NK
+        DEV=ARR(J)-AVE
+        DEV=DEV*DEV
+        VAR=VAR+DEV
+      ENDDO
+      ARMS=SQRT(VAR/FLOAT(NK))
+C
+C    report array facts
+C
+      WRITE(*,10001)NK,NSUM,NNANS,AMIN,AMAX,ARMS,AVE
+10001 FORMAT('no. of entries = ',I6,'  no. non-zero = ',I6,
+     :       '  no.of.NaNs = ',I6,/,'min = ',G12.5,'  max = ',G12.5,
+     :       '  rms = ',G12.5,'  average = ',G12.5)
+      RETURN
+      END

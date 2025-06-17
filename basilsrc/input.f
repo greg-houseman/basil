@@ -498,15 +498,15 @@ C
      :                  IFLTTIPS,IOFF,ITIMETYPE,IDENMOD,
      :                  IRHEOMOD,MFIXFLAG,NITER,IGRID,NDFORM,
      :                  RHO,TILTDEG,CENTLNG,ITIMESTEPORDER,
-     :                  EX,EY,UVP,LEM,NOR,IBC,IBNGH,IBCTYP,KORNER,
-     :                  QBND,POLEP,IBPOLE,TAPERF,VHB,IMAT,
-     :                  VOLD,SSQ,FROT,DENS,TEMPT,IELFIX,
+     :                  EX,EY,UVP,UVPTS,LEM,NOR,IBC,IBNGH,IBCTYP,
+     :                  KORNER,QBND,TANDF,POLEP,IBPOLE,TAPERF,VHB,
+     :                  IMAT,VOLD,SSQ,FROT,DENS,TEMPT,IELFIX,
      :                  XYEXIT,SHAPEMIN,SEGMIN,ANGMIN,
      :                  IFBC1,IFBC2,IFEQV,ISEG,
      :                  JFBC1,JFBC2,IENDP1,IENDP2,NFPF3,
      :                  LGEM,EXLG,EYLG,STELPX,STELPY,
      :                  UXLG,UYLG,LGIBC,LGIBCF,
-     :                  NE,NUP,NBP,NMP,NSEG,IVERB,
+     :                  NE,NUP,NBP,NMP,NSEG,NROWS,
      :                  GSDUDX,GSDUDY,GSDVDX,GSDVDY,INITVEL,
      :                  REMESHFLAG,NEGTIM,IERROR)
 C
@@ -542,6 +542,7 @@ C
       DIMENSION SSQ(NUP),TEMPT(NUP)
       DIMENSION DENS(7,NE)
       DIMENSION EX(NUP),EY(NUP)
+      DIMENSION UVP(NROWS),UVPTS(NROWS)
       DIMENSION EXLG(IV(INUL)),EYLG(IV(INUL))
       DIMENSION STELPX(IV(INPM)*IV(INSM)),STELPY(IV(INPM)*IV(INSM))
       DIMENSION ISEG(3,NSEG)
@@ -553,7 +554,7 @@ C
       DIMENSION POLEP(3,MAXPOLE)
       DIMENSION IBPOLE(NBP,2),TAPERF(NBP)
       DIMENSION ROTIX(3,3)
-      DIMENSION PTALO(1),PTALA(1)
+      DIMENSION PTALO(1),PTALA(1),TANDF(2)
 C
 C     PI=3.1415926536
       RTODEG=180.0/3.1415926536
@@ -613,17 +614,16 @@ C
             IERROR=11
             GO TO 600
           ENDIF
-          IF(ISTR.GE.1)THEN
-            LNRF=LNBD+LNR+1
-            FILER(1:LNRF)=BINDIR(1:LNBD)//'/'//NAMER(1:LNR)
-            OPEN(LDIN,FILE=FILER(1:LNRF),STATUS='old',
-     :           FORM='unformatted',IOSTAT=IOS)
-            IF(IOS.NE.0) THEN
-              WRITE(LSC,10125)FILER(1:LNRF)
-              WRITE(LUW,10125)FILER(1:LNRF)
-              IERROR=12
-              GO TO 700
-            END IF
+          LNRF=LNBD+LNR+1
+          FILER(1:LNRF)=BINDIR(1:LNBD)//'/'//NAMER(1:LNR)
+          OPEN(LDIN,FILE=FILER(1:LNRF),STATUS='old',
+     :         FORM='unformatted',IOSTAT=IOS)
+          IF(IOS.NE.0) THEN
+            WRITE(LSC,10125)FILER(1:LNRF)
+            WRITE(LUW,10125)FILER(1:LNRF)
+            IERROR=12
+            GO TO 700
+          END IF
 C
 C     Read over records at the beginning of the file until
 C     start of required record.
@@ -661,11 +661,11 @@ C           some flags e.g. VISDENS that was not in the original
 C           input file.  Therefore, we should pass the values in 
 C           the starting solution to READSTORE
 C
-            DO K=1,64
-              IVTMP(K) = IV(K)
-              RVTMP(K) = RV(K)
-            END DO
-            CALL READSTORE(LDIN,1,IVTMP,RV,NAMER,NAMEW,IR,IERROR,
+          DO K=1,64
+            IVTMP(K) = IV(K)
+            RVTMP(K) = RV(K)
+          END DO
+          CALL READSTORE(LDIN,1,IVTMP,RV,NAMER,NAMEW,IR,IERROR,
      :               IVTMP(INROWS),IVTMP(INUP),IVTMP(INE),IVTMP(INBP),
      :               IVTMP(INBP2),IVTMP(INFP),IVTMP(INEL),
      :               IVTMP(INUL),IVTMP(INPM),IVTMP(INSM),IVTMP(INBL),
@@ -676,38 +676,44 @@ C
      :               IFEQV,JFBC1,JFBC2,ISEG,LGEM,EXLG,EYLG,
      :               UXLG,UYLG,STELPX,STELPY,LGIBC,LGIBCF,
      :               IELLE,IPOLYN)
-            IF(IERROR.NE.0)THEN
-              WRITE(LSC,*)'READSTORE has returned IERROR =',IERROR
-              WRITE(LUW,*)'READSTORE has returned IERROR =',IERROR
-              CLOSE(LDIN)
-              IERROR=15
-              GO TO 700
-            ENDIF
-            IR=IR+1
-            REMESHFLAG=.TRUE.
-            WRITE(LSC,10104)IVTMP(IKSTEP),RVTMP(ITIMEL),ISTR
-            WRITE(LUW,10104)IVTMP(IKSTEP),RVTMP(ITIMEL),ISTR
+          IF(IERROR.NE.0)THEN
+            WRITE(LSC,*)'READSTORE has returned IERROR =',IERROR
+            WRITE(LUW,*)'READSTORE has returned IERROR =',IERROR
             CLOSE(LDIN)
+            IERROR=15
+            GO TO 700
+          ENDIF
+          IR=IR+1
+          REMESHFLAG=.TRUE.
+          WRITE(LSC,10104)IVTMP(IKSTEP),RVTMP(ITIMEL),ISTR
+          WRITE(LUW,10104)IVTMP(IKSTEP),RVTMP(ITIMEL),ISTR
+          CLOSE(LDIN)
 C
 C     reset time counters if ISTR=1
 C
-            IF(ISTR.EQ.1)THEN
-              IV(IKSTEP)=0
-              RV(ITIMEL)=0.0
-            END IF
-C
-C            if read error or empty file or incompatible solution,
-C            start next job
-C
-            IF ((IERROR.EQ.99).OR.(IERROR.EQ.98.AND.IR.LT.1)
-     1                        .OR.(IERROR.EQ.97)) THEN
-              GO TO 700
-            ELSE
-C            else using last record in file
-              IERROR=0
-            END IF
-            IF (ISTR.LE.1)IV(IISAVE)=-10000
+          IF(ISTR.EQ.1)THEN
+            IV(IKSTEP)=0
+            RV(ITIMEL)=0.0
+            IV(IISAVE)=-10000
           END IF
+C
+C     if read error or empty file or incompatible solution,
+C      terminate this job and look for next job
+C
+          IF ((IERROR.EQ.99).OR.(IERROR.EQ.98.AND.IR.LT.1)
+     :                        .OR.(IERROR.EQ.97))GO TO 700
+C    
+C    use last record in file and continue command processing
+C
+          IERROR=0
+C
+C    the UVPTS array is not part of standard solution file, and problems
+C    arise if the program goes straight into a REMESH operation without 
+C    UVPTS defined, so ....
+C
+          DO K=1,NROWS
+            UVPTS(K)=UVP(K)
+          ENDDO
 C
 C      The GEOMETRY command
 C
@@ -752,11 +758,11 @@ C               NOR(K)=K
               IERROR=23
               GO TO 700
             ENDIF
-            IF(IV(IIFLT).EQ.2) CALL GRINIT(IV(INX),IV(INY),
-     :                                     RV(IXLEN),RV(IYLEN),
-     :                                     EX,EY,NOR,IENDP1,IENDP2,
-     :                                     IV(INUP),IV(INN),
-     :                                     LUW,LSC,IERROR)
+C           IF(IV(IIFLT).EQ.2) CALL GRINIT(IV(INX),IV(INY),
+C    :                                     RV(IXLEN),RV(IYLEN),
+C    :                                     EX,EY,NOR,IENDP1,IENDP2,
+C    :                                     IV(INUP),IV(INN),
+C    :                                     LUW,LSC,IERROR)
            IF (IERROR.NE.0)THEN
               IERROR=24
               GO TO 700
@@ -818,20 +824,20 @@ C           CALL SMATPP(UVP,IV(INUP)*2)
 C
 C          Read and set boundary conditions from the basil input file
 C
-C           IDBUG=0
+            IDBUG=0
             REWIND(LBC)
 C           WRITE(*,*)'ISEG array properties'
 C           CALL MITPRT(ISEG,IV(INSEG),1,IV(INSEG),6)
 C     every 3rd entry in ISEG is the boundary label, but why is IV(INSEG) not a multiple of 3?
 C
             CALL VSBCAPPLY(RV(IXLEN),RV(IYLEN),RV(IBIG),IFLTTIPS,
-     :                  EX,EY,QBND,POLEP,IPOLE,RV(ISE),
+     :                  EX,EY,QBND,TANDF,POLEP,IPOLE,RV(ISE),
      :                  RV(IARGANP),RV(IHLENSC),CENTLNG,RV(IDEFV1),
      :                  IV(INCOMP),NOR,LEM,IBC,IBNGH,IBCTYP,
      :                  IV(IIDEFTYP),ISEG,IV(INSEG),IV(INUP),
      :                  IV(INE),IV(INN),IV(INBP),IV(IIFLT),
      :                  IV(INFP),NFPF3,IFBC1,IFBC2,IFEQV,JFBC1,JFBC2,
-     :                  LBC,LUW,LSC,IVERB,IERROR)
+     :                  LBC,LUW,LSC,IDBUG,IERROR)
             IV(IIPOLE)=IPOLE
 C           DO J=1,NBP
 C             IF(IBPOLE(J,1).NE.0)THEN
@@ -900,52 +906,44 @@ C
               IERROR=41
               GO TO 600
             ENDIF
-            IF (RV(IHLENSC).NE.SSOLD) THEN
+            IV(ITOPO)=1      ! may be overwritten by GPE command
+C           IF (RV(IHLENSC).NE.SSOLD) THEN
               DO I=1,IV(INUP)
                 SSQ(I)=-ALOG(RV(IHLENSC))
               ENDDO
-            END IF
+C           END IF
 C
-C     assumes that VISDENS command already called, but may be needed for BCOND
+C     ARGANP used to be used in BCOND, but no longer is, this operation now
+C      in RUNBASIL
 C
-            RV(IARGANP)=RV(IARGAN)*RV(IBDEPSC)*RV(IBDEPSC)*
-     1                      (RV(IHLENSC)**(2.0+1.0/RV(ISE)))
+C           RV(IARGANP)=RV(IARGAN)*RV(IBDEPSC)*RV(IBDEPSC)*
+C    1                      (RV(IHLENSC)**(2.0+1.0/RV(ISE)))
 C
-C     TOPO command
+C     TOPO command or GPE command; an input TYPE parameter is ignored
 C
-          ELSE IF (ITERM.EQ.INDXTOPO) THEN
-            HMIN=XZERO
-            VMIN=YZERO
-            HLEN=RV(IXLEN)
-            VLEN=RV(IYLEN)
+          ELSE IF ((ITERM.EQ.INDXTOPO).OR.(ITERM.EQ.INDXGPE)) THEN
+            SCLFAC=1.0
             CALL GETTOPODATA(INSTR,LENGTH,INDX2,FILER,ITYPE,
-     :                       HMINDUM,HLENDUM,VMINDUM,VLENDUM,
-     :                       IFILTER,IERROR)
-            IV(ITOPO)=1
+     :                       IFILTER,SCLFAC,IERROR)
+            IF(ITERM.EQ.INDXTOPO)ITYPE=1
+            IF(ITERM.EQ.INDXGPE)ITYPE=2
+            IV(ITOPO)=ITYPE
 C
-C          assume geometry values are longitude and
-C          latitude so check range
+C    Read the geographical data.  ITYPE not previously used is
+C    repurposed here.  Either GPE or TOPO will be written into SSQ
+C    Longitude and latitude limits are determined from the data
 C
-            IF ((VMIN.LT.-90.0).OR.((VMIN+VLEN).GT.90.0).OR.
-     :         (HMIN.LT.-180.0).OR.(HMIN.GE.RLONGMAX)) THEN
-              HMAX=AMOD(HMIN+HLEN,RLONGMAX)
-              WRITE(LSC,10124)HMIN,HMAX,VMIN,VMIN+VLEN
-              WRITE(LUW,10124)HMIN,HMAX,VMIN,VMIN+VLEN
-              IERROR=42
-              GO TO 700
-            END IF
-C
-C          Read the geographical data
-C
-            CALL TOPODATA(FILER,ITYPE,HMIN,VMIN,HLEN,VLEN,
-     :                    EX,EY,SSQ,NOR,IV(INUP),
+            CALL TOPODATA(FILER,ITYPE,SCLFAC,EX,EY,SSQ,IV(INUP),
      :                    RV(IHLENSC),RV(IBDEPSC),
      :                    RV(IRISOST),RV(IREFLEV),IERROR)
             IF (IERROR.NE.0)THEN
               IERROR=43
               GO TO 600
             ENDIF
-
+C
+C    the DEFORM command allows various types of deformation to be 
+C    applied to a finite elemet mesh that has already been constructed
+C
           ELSE IF (ITERM.EQ.INDXDEFORM) THEN
             CALL GETDEFORMDATA(INSTR,LENGTH,INDX2,IV(IIDEFTYP),
      :                         RV(IBANGL),RV(IERA),RV(IDEFV1),
@@ -1439,7 +1437,7 @@ C   RESET is now the default setting, if a READ command is used
 C    including RESET option has no specific effect.  including
 C    CONTINUE option ensures that time counters not reset
 C
-      ISTR=1
+      ISTR=1          ! ISTR = 1 (reset) or 2 (continue) only
    5  INDX1=INDX2
       CALL GETWORD(INSTR,LEN,INDX2,WORD,LNW,MAXWORDLEN)
       IF (INDX2.NE.0) THEN
@@ -1457,8 +1455,6 @@ C         IST=1
           CALL GETVALUE(INSTR,LEN,INDX2,INDX1)
           IF (INDX2.EQ.0) GO TO 200
           READ(INSTR(INDX1:INDX2-1),*,ERR=200)KSTART
-C       ELSE IF (ITERM.EQ.INDXRESET) THEN
-C         ISTR=1
         ELSE IF (ITERM.EQ.INDXCONTINUE) THEN
           ISTR=2
         END IF
@@ -1779,8 +1775,7 @@ C
       END
 
       SUBROUTINE GETTOPODATA(INSTR,LEN,INDX2,TOPOFILE,ITYPE,
-     :                       HMIN,HLEN,VMIN,VLEN,
-     :                       IFILTER,IERR)
+     :                       IFILTER,SCLFAC,IERR)
       INCLUDE "limits.parameters"
       CHARACTER WORD*12
       CHARACTER INSTR*(LINELEN*MAXLINES)
@@ -1789,20 +1784,14 @@ C
       PARAMETER(           INDXFILE=1,
      :                     INDXFTYPE=2,
      :                     INDXFILTER=3,
-     :                     INDXLONGMIN=4,
-     :                     INDXLONGLEN=5,
-     :                     INDXLATMIN=6,
-     :                     INDXLATLEN=7,
-     :                     NUMTOPOTERMS=7)
+     :                     INDXSCLF=4,
+     :                     NUMTOPOTERMS=4)
       CHARACTER TOPOTERMS(1:NUMTOPOTERMS)*12
       CHARACTER TMPFILE*60
       DATA TOPOTERMS     /'FILE        ',
      :                    'TYPE        ',
      :                    'FILTER      ',
-     :                    'LONGMIN     ',
-     :                    'LONGLEN     ',
-     :                    'LATMIN      ',
-     :                    'LATLEN      '/
+     :                    'SCALE       '/
       DO I=1,60
         TMPFILE(I:I)=' '
         TOPOFILE(I:I)=' '
@@ -1827,22 +1816,10 @@ C
           CALL GETVALUE(INSTR,LEN,INDX2,INDX1)
           IF (INDX2.EQ.0) GO TO 200
           READ(INSTR(INDX1:INDX2-1),*,ERR=200)IFILTER
-        ELSE IF (ITERM.EQ.INDXLONGMIN) THEN
+        ELSE IF (ITERM.EQ.INDXSCLF) THEN
           CALL GETVALUE(INSTR,LEN,INDX2,INDX1)
           IF (INDX2.EQ.0) GO TO 200
-          READ(INSTR(INDX1:INDX2-1),*,ERR=200)HMIN
-        ELSE IF (ITERM.EQ.INDXLONGLEN) THEN
-          CALL GETVALUE(INSTR,LEN,INDX2,INDX1)
-          IF (INDX2.EQ.0) GO TO 200
-          READ(INSTR(INDX1:INDX2-1),*,ERR=200)HLEN
-        ELSE IF (ITERM.EQ.INDXLATMIN) THEN
-          CALL GETVALUE(INSTR,LEN,INDX2,INDX1)
-          IF (INDX2.EQ.0) GO TO 200
-          READ(INSTR(INDX1:INDX2-1),*,ERR=200)VMIN
-        ELSE IF (ITERM.EQ.INDXLATLEN) THEN
-          CALL GETVALUE(INSTR,LEN,INDX2,INDX1)
-          IF (INDX2.EQ.0) GO TO 200
-          READ(INSTR(INDX1:INDX2-1),*,ERR=200)VLEN
+          READ(INSTR(INDX1:INDX2-1),*,ERR=200)SCLFAC
         END IF
         IF (IERR.EQ.0) GO TO 5
  200    INDX2=INDX1
@@ -2090,8 +2067,9 @@ C
         TMPPTLOC(I,N) = PTLOC(I,N)
         END DO
       END DO
-      CALL RESETSERIES(LEM,NOR,NE,NUP,MEASUR,MSNODE,MSINDX,
-     :                 TMPPTLOC,EX,EY)
+      CALL RESETSERIES(LEM,
+C    :                 NOR,
+     :                 NE,NUP,MEASUR,MSNODE,MSINDX,TMPPTLOC,EX,EY)
       DO I=1,12
         IWORD(I:I)=' '
       END DO

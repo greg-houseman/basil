@@ -599,7 +599,7 @@ PlotWidget new;
     float pixel_hgt,pixel_wdth,width,height;
     float viewable = 0.85;
     float x_offset,y_offset,tmp;
-    float pix_per_mm_vert, pix_per_mm_horiz;
+    float pix_per_mm_vert, pix_per_mm_horiz, pix_per_mm;
     Screen *scr;
 
     Screen_scale_factor = 1.0;
@@ -612,19 +612,35 @@ PlotWidget new;
         height = DEFAULTHEIGHT;
         width = DEFAULTWIDTH;
     }
-    pix_per_mm_vert = (float)HeightOfScreen(scr)/HeightMMOfScreen(scr);
-    pix_per_mm_horiz = (float)WidthOfScreen(scr)/WidthMMOfScreen(scr);
     if (Settings.orient==LANDSCAPE) {
         tmp = height;
         height = width;
         width = tmp;
     }
-    pixel_hgt = pix_per_mm_vert *height;
+//  printf("ConfigureCells: hei = %f wid = %f\n",height,width);
+//  printf("ConfigureCells: hp = %i wp = %i hm = %i wm = %i\n",
+//    HeightOfScreen(scr),WidthOfScreen(scr),HeightMMOfScreen(scr),WidthMMOfScreen(scr));
+
+//  pix_per_mm_vert = (float)HeightOfScreen(scr)/HeightMMOfScreen(scr);
+//  pix_per_mm_horiz = (float)WidthOfScreen(scr)/WidthMMOfScreen(scr);
+//  the above disabled because HeightMMOfScreen and WidthMMOfScreen providing
+//  wrong values on at least one laptop.  New strategy sets up a window which
+//  is same shape as page, arbitrarily scaled to use at most 85% of available
+//  screen in each direction.
+    pix_per_mm_vert = ((float)HeightOfScreen(scr))*viewable/height;
+    pix_per_mm_horiz =( (float)WidthOfScreen(scr))*viewable/width;
+    if(pix_per_mm_horiz < pix_per_mm_vert)pix_per_mm = pix_per_mm_horiz;
+    else pix_per_mm = pix_per_mm_vert;
+
+/*  pixel_hgt = pix_per_mm_vert *height;
     if ((int)pixel_hgt>(HeightOfScreen(scr)*viewable)) {
         pixel_hgt = (float)HeightOfScreen(scr)*viewable;
         Screen_scale_factor= (pixel_hgt/pix_per_mm_vert)/height;
     }
-    pixel_wdth = pix_per_mm_horiz* width * Screen_scale_factor;
+    pixel_wdth = pix_per_mm_horiz* width * Screen_scale_factor; */
+
+    pixel_hgt = pix_per_mm * height;
+    pixel_wdth = pix_per_mm * width;
     x_offset = pixel_wdth * Settings.page_xmargin;
     y_offset = pixel_hgt * Settings.page_ymargin;
     /*
@@ -640,12 +656,14 @@ PlotWidget new;
     /*
      * cell dimensions in cm, before scaling to fit on screen
      */
-    new->plot.cell_height_in_cm = (float)new->plot.cell_height_in_pixels/
+/*  new->plot.cell_height_in_cm = (float)new->plot.cell_height_in_pixels/
                      ((float)HeightOfScreen(scr)/HeightMMOfScreen(scr)*10)/
                                    Screen_scale_factor;
     new->plot.cell_width_in_cm = (float)new->plot.cell_width_in_pixels/
                      ((float)WidthOfScreen(scr)/WidthMMOfScreen(scr)*10)/
-                                   Screen_scale_factor;
+                                   Screen_scale_factor; */
+    new->plot.cell_height_in_cm = (float)new->plot.cell_height_in_pixels/(pix_per_mm*10.);
+    new->plot.cell_width_in_cm = (float)new->plot.cell_width_in_pixels/(pix_per_mm*10.);
 
     if ((new->plot.cur_x < 0) ||  (new->plot.cur_y < 0)) {
         XtWarning("sybil: cur_x and cur_y must be non-negative (using 0, 0).");
@@ -699,15 +717,15 @@ PlotWidget new;
     /* index cells 0 -> columns(rows) -1 */
     Plot_info.max_row=new->plot.pixmap_height_in_cells-1;
     Plot_info.max_col=new->plot.pixmap_width_in_cells-1;
-    Plot_info.pixels_per_cm=(float)HeightOfScreen(scr)/
-                                            HeightMMOfScreen(scr)*10;
+//  Plot_info.pixels_per_cm=(float)HeightOfScreen(scr)/
+//                                          HeightMMOfScreen(scr)*10;
+    Plot_info.pixels_per_cm = pix_per_mm*10.;
 
 dumiro=(int)Settings.orient; dumlpl=11; dumils=2;
 xpak_init( &dumiro,&dumlpl,&dumils,XtDisplay(new) );
 
-a00000_.psca_x=(float)WidthOfScreen(scr)/WidthMMOfScreen(scr)*10/*
-*Screen_scale_factor*/;
-a00000_.psca_y=Plot_info.pixels_per_cm/* *Screen_scale_factor*/;
+a00000_.psca_x=Plot_info.pixels_per_cm;
+a00000_.psca_y=Plot_info.pixels_per_cm;
 a00000_.iyo=new->plot.pixmap_height_in_pixels;
 
 /***FIX this when data read from saved file *****/
@@ -1081,7 +1099,7 @@ char *label;
     XCharStruct overall;
     extern PlotWidget plotArea;
 
-    int width=0,ascent,descent,direction,state;
+    int width,lableng,ascent,descent,direction,state;
     float xtmp, ytmp;
     PlotWidget cw = plotArea;
 
@@ -1098,13 +1116,17 @@ char *label;
 */
 
     width = cw->plot.pixmap_width_in_pixels;
+
+// the following define default offsets for string.  They are ad hoc, but
+// seemingly appropriate for the default font when Plot_info.font == NULL
     descent = ascent = 20;
+    lableng = 20;
     if (Plot_info.font!=NULL) {
         XSetFont(XtDisplay(cw),cw->plot.draw_gc,Plot_info.font->fid);
         XTextExtents(Plot_info.font,
                         label,strlen(label),
                         &direction,&ascent,&descent,&overall);
-        width = overall.width;
+        lableng = overall.width;
     }
     state=PEN_UP;
     xtmp= *x; ytmp= *y;
@@ -1113,19 +1135,18 @@ char *label;
     if (*y_offset==J_CENTRE) ytmp += ((float)(ascent+descent)/2.0);
     else if (*y_offset==J_TOP) ytmp += ((float)ascent+1.0);
     else if (*y_offset==J_BASE) ytmp -= ((float)descent+1);
-    if (*x_offset==J_RIGHT) xtmp -= ((float)width+1);
+    if (*x_offset==J_RIGHT) xtmp -= ((float)lableng+1);
     else if (*x_offset==J_CENTRE) {
-        width /= 2;
-        xtmp -= (float)width;
+        lableng /= 2;
+        xtmp -= (float)lableng;
     }
     /*
      * keep the label on the page
      */
-    if ((int)xtmp+width > (int)(cw->plot.pixmap_width_in_pixels))
-        xtmp = (float)(cw->plot.pixmap_width_in_pixels-width-1);
+    if ((int)xtmp+lableng > (int)(cw->plot.pixmap_width_in_pixels))
+        xtmp = (float)(cw->plot.pixmap_width_in_pixels-lableng-1);
     if ((int)ytmp > (int)(cw->plot.pixmap_height_in_pixels))
         ytmp = (float)(cw->plot.pixmap_height_in_pixels-1);
-
     if (Settings.text_bg)
         XDrawImageString(XtDisplay(cw),cw->plot.big_picture,
                         cw->plot.draw_gc,
@@ -1137,7 +1158,7 @@ char *label;
                         (int)xtmp, (int)ytmp,
                         label,strlen(label));
 
-    a00000_.iox = xtmp+width;
+    a00000_.iox = xtmp+lableng;
     a00000_.ioy = ytmp;
 }
  
@@ -2334,6 +2355,12 @@ input_options *opts;
                                break;
                  case ABS_MAP: fprintf(fp,"%s ",colmap_terms[2].name);
                                charcnt += strlen(colmap_terms[2].name)+1;
+                               break;
+                 case HAW_MAP: fprintf(fp,"%s ",colmap_terms[3].name);
+                               charcnt += strlen(colmap_terms[3].name)+1;
+                               break;
+                 case ROM_MAP: fprintf(fp,"%s ",colmap_terms[4].name);
+                               charcnt += strlen(colmap_terms[4].name)+1;
                                break;
                  }
                  break;

@@ -54,11 +54,16 @@ C
       AC2=10.0*AC*AC
 C      AC2=1.0*AC*AC
 C
-C    first matrix-vector multiply
+C    first matrix-vector multiply: R = matrix*PDP
 C
+C     WRITE(*,*)'NUP,NN,NFP,NROWS =',NUP,NN,NFP,NROWS
       CALL MATVEC(PDP,R,NCOMP,STK,STK2,STK3,STK4,
      :            IK,IK2,IK4,NK,NK2,NK4,KBW,K2BW,K4BW,
      :            NUP,NN,NFP,NROWS,IFLT)
+C     WRITE(*,*)'XDP after first MATVEC'
+C     CALL DMATPP(XDP,NROWS)
+C     WRITE(*,*)'R after first MATVEC'
+C     CALL DMATPP(R,NROWS)
       DO 20 I=1,NROWS
         R(I)=XDP(I)-R(I)
         XDP(I)=PDP(I)
@@ -75,12 +80,9 @@ C
         PDP(I)=RTIL(I)
    30 CONTINUE
 C
-C     calculate the norm of the residual
+C     calculate the norm of the residuals separately for
+C     velocity, fault tractions, pressure
 C
-C     RESID=0.0
-C     DO 40 I=1,NROWS
-C       RESID=RESID+RTIL(I)*R(I)
-C  40 CONTINUE
       RESIUV=0.0
       RESIST=0.0
       RESIPR=0.0
@@ -116,7 +118,8 @@ C
 C
 C     update solution vector x and residual vector r
 C
-      ALPHA=RESID/PAPDN
+      ALPHA=1.0
+      IF(PAPDN.NE.0.0)ALPHA=RESID/PAPDN
       DO I=1,NROWS
         XDP(I)=XDP(I)+ALPHA*PDP(I)
         R(I)=R(I)-ALPHA*WORK(I)
@@ -139,10 +142,6 @@ C
 C     calculate beta = (r(k+1).r(k+1))/(r(k).r(k))
 C
       RRP=RESID
-C     RESID=0.0
-C     DO I=1,NROWS
-C       RESID=RESID+RTIL(I)*R(I)
-C     ENDDO
       RESIUV=0.0
       RESIST=0.0
       RESIPR=0.0
@@ -165,7 +164,7 @@ C
 C     if satisfactory convergence return solution
 C
 C     CALL DATIME(IDAY,ISEC,1)
-      IF(IVERB.GT.10)THEN
+      IF(IVERB.GE.10)THEN
         IF(MOD(K,IVERB).EQ.0)
      :            WRITE(LSC,10002)K,RESIUV,RESIST,RESIPR,BETA
       ENDIF
@@ -216,6 +215,7 @@ C     INCLUDE 'cg.parameters'
       DIMENSION STK(NK1),STK2(NK2),STK3(NFP),STK4(NK4)
       DIMENSION IK(NK1),IK2(NK2),IK4(NK4)
 C
+C     WRITE(*,*)'In MATVEC: NROWS,NUP,NN,NFP=',NROWS,NUP,NN,NFP
       NUP2=NUP*2
       DO I=1,NROWS
         RES(I)=0.0

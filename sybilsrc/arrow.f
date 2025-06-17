@@ -347,6 +347,7 @@ C
 C
       RTODEG=57.29577951
       PION2=1.570796327
+      WRITE(*,*)'Nodal velocity vectors are printed to veln.out'
       OPEN(14,FILE='veln.out',STATUS='UNKNOWN',IOSTAT=IERR)
       DO 10 J=1,NUP
         NODE=NOR(J)

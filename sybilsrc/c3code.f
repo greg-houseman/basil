@@ -263,14 +263,13 @@ C  19     CONTINUE
 C
 C      draw colour scale bar - aspect 10:1
 C
-      ICD =IC2-IC0
+      ICD = IC2-IC0
       FRAC=0.7
       IF (IORIENTVERT.EQ.1) THEN
         BARLEN=FRAC*(YMAX-YMIN)
       ELSE
         BARLEN=FRAC*(XMAX-XMIN)
       END IF
-C     BARWDTH = BARLEN*0.08*(XMAX-XMIN)/(YMAX-YMIN)
       BARWDTH = BARLEN*0.1
       IF (IORIENTVERT.EQ.1) THEN
 C          move 1.5xwidth as brush stroke centres on xlev0
@@ -279,7 +278,6 @@ C          move 1.5xwidth as brush stroke centres on xlev0
         CALL CONVERTUTOXPTS(BARWDTH,WDTH)
         CALL CONVERTUTOYPTS(BARLEN,HGT)
       ELSE
-C       YLEV0=YMIN - BARWDTH*1.5
         YLEV0=YMIN - BARWDTH*2.0
         XLEV0=XMIN+0.5*(1.0-FRAC)*(XMAX-XMIN)
         CALL CONVERTUTOXPTS(BARLEN,HGT)
@@ -288,8 +286,8 @@ C       YLEV0=YMIN - BARWDTH*1.5
 C      the next line is necessary
       CALL PLOTU(XLEV0,YLEV0,3)
       DINTRVL = FLOAT(ICD)/HGT
-      IF (DINTRVL.LT.1.0) THEN
-        INTRVL = 1
+      IF (ABS(DINTRVL).LT.1.0) THEN
+        INTRVL = SIGN(1,ICD)
       ELSE
         INTRVL = DINTRVL
       END IF

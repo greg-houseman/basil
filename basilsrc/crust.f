@@ -168,13 +168,17 @@ C
 C
 C    Calculate the timestep using the following criteria:
 C
-C    b) No element should be stretched or compressed by more
-C       than (100/MPDEF)% in any given timestep
+C    b) No element should undergo a strain of more than 1/MPDEF
+C        in any given timestep (20% if MPDEF=5)
 C    c) The product of growth rate (sigma) times DT < 1/4
 C
+C    routine modified by GAH 17/1/25 to use TFACT - earlier version had
+C    TFACT = 1 by default.  TFACT > 1 allows time-steps greater by that factor
+C
       EPS=0.0001
+      TFACT=10.0
       IT=IDT0
-      DEFLIM=DVMX*FLOAT(MPDEF)
+      DEFLIM=TFACT*DVMX*FLOAT(MPDEF)
 C     GRLIM=0.25      ! for growth rate criteia not enabled at present
 C
 C     successively halve time step until it passes deformation criteria
@@ -185,10 +189,10 @@ C
 C
 C     successively double time step if it is already smaller than needed
 C
-      DO WHILE((IT.GE.2*IDT0).AND.(FLOAT(IT).GT.(2.0*DEFLIM)))
+      DO WHILE((IT.GE.(2*IDT0)).AND.(FLOAT(IT).GT.(2.0*DEFLIM)))
         IT=IT/2
       ENDDO
-      DT=1.0/FLOAT(IT)
+      DT=TFACT/FLOAT(IT)
 C
 C    ensure that solution is calculated and saved on integer multiple
 C    of TSAVE, even if it is stored at other times also because of KSAVE
@@ -199,50 +203,87 @@ C
         DT=TSAVE*FLOAT(NLEVL)-T
       END IF
       IF(ABS(T+DT-TSAVE*FLOAT(NLEVL)).LT.EPS)TTSV=TSAVE*FLOAT(NLEVL-1)
+C     WRITE(*,*)'T,DT,IDT0,DEFLIM,DVMX=',T,DT,IDT0,DEFLIM,DVMX
 C
       RETURN
       END
-      SUBROUTINE DFSTEP(DT,EXTS,EYTS,EX,EY,UVP,NOR,LEM,NUP,NE,NN,
+      SUBROUTINE DFSTEP(DT,EXTS,EYTS,EX,EY,UVP,LEM,NUP,NE,NN,
      :                  NCOMP,IOFF,TBXOFF,TBYOFF,VELXO,VELYO,
+     :                  IFLT,IFBC1,IFEQV,NFP,NFPF3,
      :                  SEGMIN,LSEGMIN,SHAPEMIN,LSHAPEMIN,
      :                  ANGMIN,LANGMIN)
 C
-C    This routine updates the triangular mesh using the present
-C     velocity field and returns information on minimum segment length
-C     and minmimum shape parameter
+C    This routine advects the triangular mesh using the present
+C    velocity field and returns information on minimum segment length
+C    and minimum shape parameter
+C    This routine modified in February 2024 to update fault nodes
+C    where relative displacement occurs.  As part of this amendment
+C    the NOR(NUP) array is removed as no longer necessary.
 C
-      DIMENSION EX(NUP),EY(NUP),NOR(NUP),UVP(NUP,2),LEM(6,NE)
+      INCLUDE 'limits.parameters'
+      DIMENSION EX(NUP),EY(NUP),UVP(NUP,2),LEM(6,NE)
+      DIMENSION IFBC1(NFP),IFEQV(NFP)
       DIMENSION EXTS(NUP),EYTS(NUP)
       DIMENSION SD2(3)
+C
+C    where are TBXOFF and TBYOFF used ?
 C
       IF (IOFF.NE.0) THEN
         TBXOFF = TBXOFF + DT*VELXO
         TBYOFF = TBYOFF + DT*VELYO
       ENDIF
-
-      DO N=1,NUP
-        NI=NOR(N)
-        IF((NI.GE.1).AND.(NI.LE.NN))THEN
-          EX(NI)=EXTS(NI) + DT*UVP(N,1)
-          EY(NI)=EYTS(NI) + DT*UVP(N,2)
+C
+C    the basic vertex update process follows
+C
+      DO NI=1,NN
+        EX(NI)=EXTS(NI) + DT*UVP(NI,1)
+        EY(NI)=EYTS(NI) + DT*UVP(NI,2)
 C
 C     correction for thin spherical sheet
 C
-          IF(NCOMP.EQ.-1)THEN
-            EX(NI)=EX(NI) + DT*EXTS(NI)*UVP(N,2)/TAN(EYTS(NI))
-          ENDIF
+        IF(NCOMP.EQ.-1)THEN
+          EX(NI)=EX(NI) + DT*EXTS(NI)*UVP(NI,2)/TAN(EYTS(NI))
         ENDIF
       ENDDO
 C
-C   Calculate new position of midpoint nodes
+C  Amendment that applies to pairs of fault nodes
+C  NFPF3 = the number of nodes on internal faults
+C  NFP   = number of fault nodes + periodic boundary nodes
+C  IFBC1 = the node numbers that lie on a fault
+C          one side of a fault is assigned negative values
+C  IFEQV = gives the position in the array IFBC1 of the equivalent node
+C          on the other side of the fault (e.g. if J=IFEQV(I),
+C          then IFBC1(I) and IFBC1(J) are across the fault from each other)
+C
+      IF(IFLT.NE.0)THEN
+        DO NI=1,NFPF3
+          MIA=IFBC1(NI)
+          IF((MIA.GT.0).AND.(MIA.LE.NN))THEN  ! +ve side vertex
+            MIB=-IFBC1(IFEQV(NI))
+C           WRITE(*,*)'DFSTEP: NI,MIA,MIB,EX(MIA),EX(MIB):',
+C    :                         NI,MIA,MIB,EX(MIA),EX(MIB)
+            XAVE=0.5*(EX(MIA)+EX(MIB))
+            YAVE=0.5*(EY(MIA)+EY(MIB))
+            EX(MIA)=XAVE
+            EX(MIB)=XAVE
+            EY(MIA)=YAVE
+            EY(MIB)=YAVE
+          ENDIF
+        ENDDO
+      ENDIF
+C
+C
+C   Calculate new position of midpoint nodes.  Easier to do twice
+C   than arrange for it to be only done once on a given midpoint
+C   In general a midpoint is shared by two elements.
 C
       DO JEL=1,NE
-        NJ1=NOR(LEM(1,JEL))
-        NJ2=NOR(LEM(2,JEL))
-        NJ3=NOR(LEM(3,JEL))
-        NJ4=NOR(LEM(4,JEL))
-        NJ5=NOR(LEM(5,JEL))
-        NJ6=NOR(LEM(6,JEL))
+        NJ1=LEM(1,JEL)
+        NJ2=LEM(2,JEL)
+        NJ3=LEM(3,JEL)
+        NJ4=LEM(4,JEL)
+        NJ5=LEM(5,JEL)
+        NJ6=LEM(6,JEL)
         EX(NJ4)=(EX(NJ3)+EX(NJ1))*0.5
         EX(NJ5)=(EX(NJ1)+EX(NJ2))*0.5
         EX(NJ6)=(EX(NJ2)+EX(NJ3))*0.5
@@ -264,8 +305,8 @@ C
         DO 10 K1=1,3
           K2=MOD(K1,3)+1
           K3=MOD(K1+1,3)+1
-          LK2=NOR(LEM(K2,N))
-          LK3=NOR(LEM(K3,N))
+          LK2=LEM(K2,N)
+          LK3=LEM(K3,N)
           BY=EY(LK2)-EY(LK3)
           CX=EX(LK3)-EX(LK2)
           SD2(K1)=BY*BY + CX*CX
@@ -286,6 +327,7 @@ C
             COSMAX=CSA
             ANGMIN=ACOS(CSA)
             LANGMIN=N
+            LANGKIN=K1
           END IF
    20   CONTINUE
         IF (DEFIND.LT.SHAPEMIN) THEN
@@ -294,6 +336,9 @@ C
         END IF
    25 CONTINUE
       SEGMIN=SQRT(SEGSQMIN)
+      NODE=LEM(LANGKIN,LANGMIN)
+      WRITE(*,10110)ANGMIN/DTOR,LANGMIN,LANGKIN,NODE,EX(NODE),EY(NODE)
+10110 FORMAT('smallest angle',F9.4,' node: ',3I5,' (x,y) =',2F9.4)
       RETURN
       END
 
@@ -318,16 +363,21 @@ C
       END
 
       SUBROUTINE PLOAD(ISET,EX,EY,LEM,NOR,IELFIX,PNI,PLI,
-     :                 SSQ,QLOAD,ARGANP,BRGANP,THRESH,
-     :                 NROWS,NUP,NE,NCOMP,LSC)
+     :                 SSQ,QLOAD,ARGANP,BRGANP,DFLTSSQ,
+     :                 THRESH,NROWS,NUP,NE,NCOMP,ITYPGP,LSC)
 C
 C     Routine to calculate the load vector due to horizontal
 C     crustal thickness variation...put into QLOAD.
+C     This routine was rewritten in November 2023 to:
+C     1. assume linear variation of the integrand (S^2) and
+C     2. assume constant Ar within a given element
+C     These changes should allow for a more stable, less noisy
+C     numerical calculation .... GAH
 C
       DOUBLE PRECISION PNI,PLI,BY,CX,DNDP,XX,YY,XLA,YCOT,WGT
-      DOUBLE PRECISION YLA,DNIDX,DNIDY,EXL,WEXL,SUM1,SUM2
+      DOUBLE PRECISION YLA,DNIDX,DNIDY,EXL,WEXL,SUM1,SUM2,ABC
       DOUBLE PRECISION EXZERO,ARGANE
-      COMMON/SSQVAL/ISSQACTIVE,IROTACTIVE,DFLTSSQ
+C     COMMON/SSQVAL/ISSQACTIVE,IROTACTIVE,DFLTSSQ
       DIMENSION EX(NUP)
       DIMENSION EY(NUP)
       DIMENSION LEM(6,NE)
@@ -336,11 +386,9 @@ C
       DIMENSION QLOAD(NROWS)
       DIMENSION SSQ(NUP),IELFIX(NUP)
       DIMENSION BY(3),CX(3),DNDP(84)
-      DIMENSION WGT(7)
+      DIMENSION WGT(7),EXL(3),ABC(3)
       DIMENSION XX(3),YY(3),XLA(7),YCOT(7)
 C
-C     DATA W/0.05,0.05,0.05,0.13333333,0.13333333,0.13333333,
-C    10.45/
       SAVE WGT
       DATA WGT/0.12593918,0.12593918,0.12593918,0.13239415,
      1       0.13239415,0.13239415,0.225/
@@ -352,25 +400,20 @@ C
         QLOAD(I)=0.0
       ENDDO
 C
-C    Set IELFIX where crustal thickness has exceeded THRESH
-C    (set once and leave set for any particular node)
+C    IELFIX was a flag set to 1 if crustal thickness
+C    exceeds a threshold value THRESH.  Previously it was 
+C    allowed to vary within an element. Now ARGAN can only take 
+C    one of two values (constant) within an element and IELFIX
+C    is no longer used
 C
-      ISET=0
-      DO J=1,NUP
-        IF(SSQ(J).GT.THRESH)IELFIX(J)=1
-        ISET=ISET+IELFIX(J)
-      ENDDO
-C     WRITE(LSC,10001)ISET
-C10001 FORMAT(I5,' Node points have so far been set in PLOAD')
-C
-C    Cycle over the elements
+C    For each element
 C
       DO 60 N=1,NE
 C
 C    Set up the geometrical coefficients for the natural
 C    coordinates used in the triangle elements
 C
-        DO 10 K1=1,3
+        DO K1=1,3
           K2=MOD(K1,3)+1
           K3=MOD(K1+1,3)+1
           LK1=NOR(LEM(K1,N))
@@ -382,7 +425,7 @@ C
             XX(K1)=EX(LK1)
             YY(K1)=EY(LK1)
           END IF
-   10   CONTINUE
+        ENDDO     ! K1  index for the 3 vertices of triangle
 C
 C   TRIA (in PLOAD) is twice the area of the triangle element
 C
@@ -392,11 +435,11 @@ C   Evaluate the cot(latitude) term if required at each
 C    integration point
 C
         IF(NCOMP.EQ.-1)THEN
-          DO 26 K7=1,7
+          DO K7=1,7
             XLA(K7)=XX(1)*PLI(K7,1)+XX(2)*PLI(K7,2)+XX(3)*PLI(K7,3)
             YLA=YY(1)*PLI(K7,1)+YY(2)*PLI(K7,2)+YY(3)*PLI(K7,3)
             YCOT(K7)=1.D0/DTAN(YLA)
-   26     CONTINUE
+          ENDDO    ! K7, integration point index
         END IF
 C
 C    Calculate the values and gradients of the interpolation
@@ -404,7 +447,30 @@ C    function at the seven integration points
 C
         CALL DNCOM(0,BY,CX,DNDP)
 C
-C     for node number I
+C     Calculate EXL=S**2 at the 3 midpoints on edges of triangle
+C     assume linear variation within the element
+C     value of ARGAN is enhanced if 2 out of 3 nodes cross threshold
+C
+        ISET=0
+        DO J=1,3
+          JN=LEM(J+3,N)
+          IF(SSQ(JN).GT.THRESH)ISET=ISET+1
+          EXL(J)=SSQ(JN)
+          IF(ITYPGP.EQ.1)EXL(J)=EXP(2.D0*EXL(J))-EXZERO
+        ENDDO
+        ARGANE=ARGANP
+        IF(ITYPGP.EQ.1)THEN
+          IF(ISET.GE.2)ARGANE=ARGANE+BRGAN
+          ARGANE=0.5*ARGANE
+        ENDIF
+C
+C     Evaluate the linear coefficients (a,b,c)
+C
+        ABC(1)=EXL(1)+EXL(2)-EXL(3)
+        ABC(2)=-EXL(1)+EXL(2)+EXL(3)
+        ABC(3)=EXL(1)-EXL(2)+EXL(3)
+C
+C     for interpolation function I (node number I)
 C
         DO I=1,6
           LI=LEM(I,N)
@@ -413,34 +479,27 @@ C
 C
 C     Integrate over the element
 C
-          DO 55 K=1,7
+          DO K=1,7
 C
-C     Calculate EXL=ArS**2  at each integration point(K)
+C    evaluate the interpolated layer thickness at each gaussian point
 C
-            ARGANE=0.D0
-            EXL=0.D0
-            DO 35 J=1,6
-              JN=LEM(J,N)
-              ARGANE=ARGANE+(ARGANP+FLOAT(IELFIX(JN))*BRGANP)*PNI(K,J)
-              EXL=EXL + 2.D0*SSQ(JN)*PNI(K,J)
-   35       CONTINUE
-            EXL=ARGANE*(EXP(EXL)-EXZERO)
-C
-C    perform integration
-C
+            XLINT=0.0
+            DO KIL=1,3
+              XLINT=XLINT+ABC(KIL)*PLI(K,KIL)
+            ENDDO      ! KIL, dot product of (a,b,c) (L1,L2,L3)
             KIN=(I-1)*14 + (K-1)*2 +1
             DNIDX=DNDP(KIN)
             DNIDY=DNDP(KIN+1)
             IF(NCOMP.EQ.-1)THEN
               DNIDY=DNIDY+YCOT(K)*(PNI(K,I)*TRIA+XLA(K)*DNIDX)
             END IF
-            WEXL=WGT(K)*EXL
+            WEXL=WGT(K)*XLINT
             SUM1=SUM1 + WEXL*DNIDX
             SUM2=SUM2 + WEXL*DNIDY
-   55     CONTINUE
+          ENDDO       ! K, integration point index
 C
-          QLOAD(LI)=QLOAD(LI)+0.5*SUM1
-          QLOAD(LI+NUP)=QLOAD(LI+NUP)+0.5*SUM2
+          QLOAD(LI)=QLOAD(LI)+SUM1*ARGANE
+          QLOAD(LI+NUP)=QLOAD(LI+NUP)+SUM2*ARGANE
         ENDDO          !  on node number I
    60 CONTINUE
 C

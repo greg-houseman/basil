@@ -13,3 +13,17 @@
  * smaller values can cause basil to fail array allocation
  */
 #define AREA_MIN 0.00008
+
+/*
+ * this func is in c_funcs.c
+ */
+int lines_intersect( double x1, double y1,   /* First line segment */
+                     double x2, double y2,
+
+                     double x3, double y3,   /* Second line segment */
+                     double x4, double y4,
+
+                     double *x,
+                     double *y         /* Output value:
+                                * point of intersection */
+               );

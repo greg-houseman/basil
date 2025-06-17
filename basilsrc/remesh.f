@@ -5,99 +5,84 @@ C*    Copyright (c) 1997 by G.A. Houseman, T.D. Barr, & L.A. Evans
 C*    See README file for copying and redistribution conditions.
 C*--------------------------------------------------------------------
 C
-      SUBROUTINE REMESH(EX,EY,IBCTYP,IBC,IBNGH,SEGSQLIM,ANGLIM,
-     :                  PTLOC,ISEG,LEM,NOR,INTV,IVNEW,IFLT,NFP,
+      SUBROUTINE REMESH(EX,EY,IBCTYP,IBC,QBND,SEGSQLIM,ANGLIM,
+     :                  PTLOC,ISEG,LEM,INTV,IVNEW,IFLT,NFP,
      :                  NFPF3,IFBC1,IFEQV,PDIST,MSNODE,MEASUR,
-     :                  LUW,LSC,IERR)
+     :                  LUW,LSC,IVERB,IERR)
 C
       INCLUDE "indices.parameters"
       INCLUDE "limits.parameters"
       INTEGER INTV(64),IVNEW(64)
       DIMENSION MEASUR(MAXMEAS), MSNODE(MAXMEAS), PTLOC(3,MAXMEAS)
-      REAL, DIMENSION(:), POINTER :: EX, EY
+      REAL, DIMENSION(:), POINTER :: EX,EY,QBND
       INTEGER, DIMENSION(:,:), POINTER :: ISEG,LEM
-      INTEGER, DIMENSION(:), POINTER :: NOR,IBC,IFBC1,IFEQV
-      INTEGER, DIMENSION(:,:), POINTER :: IBCTYP,IBNGH
-      INTEGER, ALLOCATABLE :: IPROTECTED(:)
-      LOGICAL, ALLOCATABLE :: FOUND(:)
+      INTEGER, DIMENSION(:), POINTER :: IBC,IFBC1,IFEQV
+      INTEGER, DIMENSION(:), POINTER :: IBCTYP,IBNGH
       INTERFACE
-        SUBROUTINE FINDPROTECTED(NUMPROTECTED,FOUND,
-     :                        IBCTYP,IBC,IBNGH,ISEG,
-     :                        NOR,NBP,NN,NUP,NSEG)
-        DIMENSION IBC(NBP)
-        DIMENSION IBCTYP(NBP*2)
-        DIMENSION IBNGH(NBP*2)
-        DIMENSION NOR(NUP), ISEG(3,NSEG)
-        LOGICAL FOUND(NBP)
+        SUBROUTINE EXTERNAL_SEG_X_(ISEG,EX,EY,NSEG,NUP,IERR)    BIND(C)
+          DIMENSION EX(NUP),EY(NUP)
+          DIMENSION ISEG(3,NSEG)
+          INTEGER NSEG,IERR
         END SUBROUTINE
-        SUBROUTINE SETPROTECTED(NUMPROTECTED,IPROTECTED,FOUND,
-     :                        IBC,NOR,NBP,NUP,IERR)
-        DIMENSION IBC(NBP)
-        DIMENSION NOR(NUP)
-        INTEGER IPROTECTED(NUMPROTECTED)
-        LOGICAL FOUND(NBP)
-        END SUBROUTINE
-        SUBROUTINE BEMESH(EX,EY,SEGSQLIM,ANGMIN,
-     :                  PTLOC,ISEG,IBC,LEM,NOR,IFBC1,IV,IVNEW,
-     :                  IPROTECTED,NUMPROTECTED,NUP,NSEG,NBP,
-     :                  IFLT,NFPF3,MSNODE,MEASUR,LUW,LSC,IERR)
-        INCLUDE "indices.parameters"
+      END INTERFACE
+      INTERFACE
+        SUBROUTINE BNDSEGS(EX,EY,QBND,ISEG,IBC,IBCTYP,IFBC1,
+     :                     NN,NBP,NUP,NSEG,IFLT,NFPF3,IVERB,IERR)
         INCLUDE "limits.parameters"
-C       REAL, DIMENSION(:), POINTER :: EX, EY
-C       INTEGER, DIMENSION(:,:), POINTER :: ISEG
-        INTEGER, DIMENSION(:,:), POINTER :: LEM
-        INTEGER, DIMENSION(:), POINTER :: NOR
-        DIMENSION IPROTECTED(NUMPROTECTED)
+C
+        INTEGER, DIMENSION(:,:), POINTER :: ISEGCP
+        INTEGER, DIMENSION(:,:), POINTER :: IBPNBR
+        INTEGER, DIMENSION(:), POINTER :: IBP
+        INTEGER, DIMENSION(:), POINTER :: IPROT
+        INTEGER, DIMENSION(:), POINTER :: IBPTYP
+        REAL, DIMENSION(:), POINTER :: RBND
+        REAL, DIMENSION(:,:), POINTER :: SEGPRO
+        DIMENSION EX(NUP),EY(NUP),QBND(NBP*2)
         DIMENSION ISEG(3,NSEG)
-        DIMENSION EX(NUP),EY(NUP)
-        DIMENSION IBC(NBP)
+        DIMENSION IBC(NBP),IBCTYP(NBP*2)
         DIMENSION IFBC1(NFPF3)
-        DIMENSION PTLOC(3,MAXMEAS)
-        DIMENSION MEASUR(MAXMEAS), MSNODE(MAXMEAS)
-        DIMENSION IV(64), IVNEW(64)
         END SUBROUTINE
       END INTERFACE
 C
-C    this is an umbrella routine that basically calls FINDPROTECTED,
-C    SETPROTECTED, and BEMESH (BEMESH was previously called REMESH)
+C    this routine calls BNDSEGS after a couple of preliminaries
 C
       NUP=INTV(INUP)
       NSEG=INTV(INSEG)
       NBP=INTV(INBP)
       NN=INTV(INN)
-C
-C   if periodic boundaries apply, confirm current value of PDIST
-C
+      NE=INTV(INE)
+      MSINDX=INTV(IMSINDX)
       KPBC=INTV(IKPBC)
-      IF((KPBC.GT.0).AND.(NFP.GT.NFPF3))
-     :  CALL PBWIDTH(EX,EY,IFBC1,IFEQV,NOR,NUP,NFP,NFPF3,KPBC,PDIST)
-      NPBPT=NFP-NFPF3
-C
-C    identify nodes that should be protected in the REMESH procedure
-C
-      ALLOCATE(FOUND(NBP),STAT=IERR)
-      CALL FINDPROTECTED(NUMPROTECTED,FOUND,
-     :                   IBCTYP,IBC,IBNGH,ISEG,NOR,
-     :                   NBP,NN,NUP,NSEG)
-      IF (NUMPROTECTED.GT.0)
-     :  ALLOCATE(IPROTECTED(NUMPROTECTED),STAT=IERR)
-      IF(IERR.NE.0)THEN
-        WRITE(LSC,10200)
-        WRITE(LUW,10200)
-        RETURN
-      ENDIF
-      CALL SETPROTECTED(NUMPROTECTED,IPROTECTED,FOUND,
-     :                  IBC,NOR,NBP,NUP,IERR)
-      IF(IERR.NE.0)THEN
-        WRITE(LSC,10201)
-        WRITE(LUW,10201)
+
+C     WRITE(6,*) NSEG
+C     DO I=1,10
+C       WRITE(6,*) ISEG(1,I), ISEG(2,I), ISEG(3,I)
+C     ENDDO
+      CALL EXTERNAL_SEG_X_(ISEG,EX,EY,NSEG,NUP,IERR)
+      IF (IERR.NE.0)THEN
+        WRITE(LSC,10203)
+        WRITE(LUW,10203)
         RETURN
       END IF
 C
-      CALL BEMESH(EX,EY,SEGSQLIM,ANGLIM,
-     :            PTLOC,ISEG,IBC,LEM,NOR,IFBC1,INTV,IVNEW,
-     :            IPROTECTED,NUMPROTECTED,NUP,NSEG,NBP,
-     :            IFLT,NFPF3,MSNODE,MEASUR,LUW,LSC,IERR)
+C   if periodic boundaries apply, confirm current value of PDIST
+C
+      IF((KPBC.GT.0).AND.(NFP.GT.NFPF3))
+     :  CALL PBWIDTH(EX,EY,IFBC1,IFEQV,NUP,NFP,NFPF3,KPBC,PDIST)
+      NPBPT=NFP-NFPF3
+C      
+C    Convert Element/local ccordinates into (X,Y) so that
+C    tracked values can be re-located after remeshing
+C
+      CALL RESETSERIES(LEM,NE,NUP,MEASUR,MSNODE,MSINDX,PTLOC,EX,EY)
+C
+C reconstruct the SEG and node arrays used to define a new mesh
+C
+      CALL BNDSEGS(EX,EY,QBND,ISEG,IBC,IBCTYP,IFBC1,
+     :             NN,NBP,NUP,NSEG,IFLT,NFPF3,IVERB,IERR)
+      DO I=1,64
+        IVNEW(I) = INTV(I)
+      END DO
 C
       IF (IERR.NE.0)THEN
         WRITE(LSC,10202)
@@ -105,113 +90,51 @@ C
         RETURN
       END IF
 C
-      DEALLOCATE(FOUND,STAT=IERR)
-      IF (NUMPROTECTED.GT.0) DEALLOCATE(IPROTECTED,STAT=IERR)
-C
-10200 FORMAT("Memory allocation problem for protected nodes.")
-10201 FORMAT("Problem finding protected nodesin SETPROTECT.")
-10202 FORMAT("Problem in remeshing operation (BEMESH).")
+10202 FORMAT("Problem in remeshing operation (BNDSEGS).")
+10203 FORMAT('External boundary segment crossing, not remeshing.'
+     :         ' Consider changing boundary conditions')
       RETURN
       END
 C
-      SUBROUTINE BEMESH(EX,EY,SEGSQLIM,ANGMIN,
-     :                  PTLOC,ISEG,IBC,LEM,NOR,IFBC1,IV,IVNEW,
-     :                  IPROTECTED,NUMPROTECTED,NUP,NSEG,NBP,
-     :                  IFLT,NFPF3,MSNODE,MEASUR,LUW,LSC,IERR)
-      INCLUDE "indices.parameters"
-      INCLUDE "limits.parameters"
-      INCLUDE "input.parameters"
-C     REAL, DIMENSION(:), POINTER :: EX, EY
-C     INTEGER, DIMENSION(:,:), POINTER :: ISEG
-      INTEGER, DIMENSION(:,:), POINTER :: LEM
-      INTEGER, DIMENSION(:), POINTER :: NOR
-      DIMENSION IPROTECTED(NUMPROTECTED)
-      DIMENSION ISEG(3,NSEG)
-      DIMENSION EX(NUP),EY(NUP)
-      DIMENSION IBC(NBP)
-      DIMENSION IFBC1(NFPF3)
-      DIMENSION PTLOC(3,MAXMEAS)
-      DIMENSION MEASUR(MAXMEAS), MSNODE(MAXMEAS)
-      DIMENSION IV(64), IVNEW(64)
-      INTERFACE
-        SUBROUTINE BNDSEGS(EX,EY,ISEG,IFBC1,IPROTECTED,ICNTPRO,
-     :                     NUP,NSEG,IFLT,NFPF3,IBPSIZE,IERR)
-C
-C      Remove small segments around the external boundary
-C      Assumes each segment in ISEG is vertex-vertex?
-C
-        INCLUDE "limits.parameters"
-        DIMENSION EX(NUP),EY(NUP)
-        DIMENSION ISEG(3,NSEG)
-        DIMENSION IFBC1(NFPF3)
-        INTEGER IPROTECTED(ICNTPRO)
-        END SUBROUTINE
-      END INTERFACE
-C      
-C    Convert Element/local ccordinates into (X,Y) so that
-C    reconversion can be done after remeshing
-C
-      MSINDX=IV(IMSINDX)
-      NSEG=IV(INSEG)
-      CALL RESETSERIES(LEM,NOR,IV(INE),NUP,MEASUR,MSNODE,
-     :                 MSINDX,PTLOC,EX,EY)
-C
-C  Find nodes that appear only once in the segment list to set IBPCNT
-C  used for array allocation in BNDSEGS; IBPCNT is obtained exactly
-C  in BNDSEGS, but allow for extra nodes for terminating boundaries.
-C  multi-segment nodes will cause IBPCNT to be overestimated here
-C
-      ILONE=0
-      DO I1=1,NSEG
-        DO K=1,2
-          N1=ISEG(K,I1)
-          INUM=0
-          DO I2=1,NSEG
-            IF(I1.NE.I2)THEN
-              IF((N1.EQ.ISEG(1,I2)).OR.
-     :           (N1.EQ.ISEG(2,I2)))INUM=INUM+1
-            ENDIF
-          ENDDO
-        ENDDO
-        IF(INUM.EQ.0)ILONE=ILONE+1
-      ENDDO
-      IBPCNT=NSEG+ILONE/2
-C     WRITE(*,*)'BEMESH: NSEG,IBPCNT,ILONE,NUMPROTECTED=',
-C    :           NSEG,IBPCNT,IMULT,NUMPROTECTED
-C
-C    find boundary segments and nodes to be passed to remeshing routine
-C    delete nodes if necessary, and remesh
-C
-      CALL BNDSEGS(EX,EY,ISEG,IFBC1,IPROTECTED,NUMPROTECTED,
-     :             NUP,NSEG,IFLT,NFPF3,IBPCNT,IERR)
-      DO I=1,64
-        IVNEW(I) = IV(I)
-      END DO
-   5  RETURN
-      END SUBROUTINE BEMESH
-C      
-      SUBROUTINE BNDSEGS(EX,EY,ISEG,IFBC1,IPROTECTED,ICNTPRO,
-     :                   NUP,NSEG,IFLT,NFPF3,IBPSIZE,IERR)
+      SUBROUTINE BNDSEGS(EX,EY,QBND,ISEG,IBC,IBCTYP,IFBC1,
+     :                   NN,NBP,NUP,NSEG,IFLT,NFPF3,IVERB,IERR)
 C
 C   This routine examines the list of segments used to define the 
 C   current mesh build, and amends it to remove excessively short 
 C   segments. The modified segment list, ISEGCP(3,NSEGNEW) and corresponding
 C   set of vertex nodes, IBP(NEWNBP) is passed to remesh_data to build
-C   a new mesh. Each segment in ISEG is vertex-vertex, but sequence of
-C   segments is randomised by the build process originally used in
+C   a new mesh. Each segment in ISEG is vertex-vertex. On input, sequence
+C   of segments is randomised by the build process originally used in
 C   triangle, and order of two nodes in ISEG is not systematic.
 C
       INCLUDE "limits.parameters"
-      DIMENSION EX(NUP),EY(NUP)
+C
+C  ISEGCP, IBP allocated for use in REMESH_DATA, SEGPRO local
+C
+      INTEGER, DIMENSION(:,:), POINTER :: ISEGCP
+      INTEGER, DIMENSION(:,:), POINTER :: IBPNBR
+      INTEGER, DIMENSION(:), POINTER :: IBP
+      INTEGER, DIMENSION(:), POINTER :: IPROT
+      INTEGER, DIMENSION(:), POINTER :: IBPTYP
+      REAL, DIMENSION(:), POINTER :: RBND
+      REAL, DIMENSION(:,:), POINTER :: SEGPRO
+C
+C  arrays received from calling routine BEMESH
+C
+      DIMENSION EX(NUP),EY(NUP),QBND(NBP*2)
       DIMENSION ISEG(3,NSEG)
-      DIMENSION IPROTECTED(ICNTPRO)
+      DIMENSION IBC(NBP),IBCTYP(NBP*2)
       DIMENSION IFBC1(NFPF3)
-C
-C    local arrays
-C
-      DIMENSION ISEGCP(3,NSEG)
-      DIMENSION IBP(IBPSIZE),NBUSE(5,IBPSIZE)
-      DIMENSION SEGPRO(2,IBPSIZE)
+      INTERFACE
+        SUBROUTINE REMESH_DATA_(IBP,ISEGCP,IBPTYP,RBND,NEWNBP,
+     :                          NSEGNEW,IBPSIZE,IVERB,IERR)    BIND(C)
+          INTEGER, DIMENSION(:,:) :: ISEGCP
+          INTEGER, DIMENSION(:) :: IBP,IBPTYP
+          REAL, DIMENSION(:) :: RBND
+          INTEGER NEWNBP,NSEGNEW,IBPSIZE,IVERB,IERR
+        END SUBROUTINE
+      END INTERFACE
+
 C
 C  IBP is a list of nodes on boundary segments (external + internal)
 C  IBPCNT is the number of unique vertex points in these segments
@@ -219,151 +142,212 @@ C  for a simple closed boundary, IBPCNT = NSEG. More than 2 segs
 C  connected to a node may result in IBPCNT < IBPSIZE - no problem
 C  First find the set of unique nodes in ISEG and store them in IBP
 C
-      IBP(1)=ISEG(1,1)
-      IBP(2)=ISEG(2,1)
-      IBPCNT=2
-      DO I=2,NSEG
-        DO J=1,IBPCNT
-          IF(IBP(J).EQ.ISEG(1,I))GOTO 10
-        ENDDO
-        IBPCNT=IBPCNT+1
-        IBP(IBPCNT)=ISEG(1,I)
-   10   CONTINUE
-        DO J=1,IBPCNT
-          IF(IBP(J).EQ.ISEG(2,I))GOTO 11
-        ENDDO
-        IBPCNT=IBPCNT+1
-        IBP(IBPCNT)=ISEG(2,I)
-   11   CONTINUE
+      ALLOCATE(ISEGCP(3,NSEG),STAT=IERR)
+C
+C  first reorganise the segments in the same kind of sequence 
+C  used in the initial setup with label numbers in ascending order
+C
+      CALL REORDR(ISEG,ISEGCP,NSEG,NBEXT,INBTOT)
+C
+C   the following call removes segments that may form a vertical 
+C   needle - needed to avoid entrainment problems
+C
+      NSEGT=NSEG        ! NSEGT may be reset by TNDRL
+      CALL TNDRL(ISEGCP,NSEG,NSEGT,EX,EY,NUP,NBEXT)
+C
+C   allocate space for IBP, noting that requirement is same as NSEG if
+C   all boundary segments form closed loop, but possibly has one more
+C   node for each unattached fault included, or one less for a doubly
+c   attached fault.  Typically a few points at end of IBP will be unused.
+C
+      IBPSIZE=NSEGT+INBTOT
+      ALLOCATE(IBP(IBPSIZE),STAT=IERR)
+      ALLOCATE(IBPNBR(2,IBPSIZE),STAT=IERR)
+      ALLOCATE(IBPTYP(IBPSIZE*2),STAT=IERR)
+      ALLOCATE(RBND(IBPSIZE*2),STAT=IERR)
+      ALLOCATE(IPROT(IBPSIZE),STAT=IERR)
+      ALLOCATE(SEGPRO(2,IBPSIZE),STAT=IERR)
+      DO J=1,IBPSIZE
+        IBP(J)=0
+        IBPNBR(1,J)=0
+        IBPNBR(2,J)=0
+        IPROT(J)=0
+        IBPTYP(J)=-1
+        IBPTYP(J+IBPSIZE)=-1
+        RBND(J)=0.0
+        RBND(J+IBPSIZE)=0.0
       ENDDO
 C
-C   IBP can contain a mix of internal and external boundary points
+C  next set up the IBP array, external boundary: one node per segment
+C  but flag points where label changes as protected
 C
+      IBP(1)=ISEGCP(1,1)
+      IBPNBR(1,1)=ISEGCP(1,NBEXT)       !closing the loop
+      IBPNBR(2,1)=ISEGCP(2,1)
+      IPROT(1)=1
+      DO K=2,NBEXT
+        JBP=K
+        IBP(K)=ISEGCP(1,K)
+        IBPNBR(1,K)=ISEGCP(1,K-1)
+        IBPNBR(2,K)=ISEGCP(2,K)
+        IF(ISEGCP(3,K-1).NE.(ISEGCP(3,K)))IPROT(K)=1
+      ENDDO
+C     DO K=1,NBEXT
+C       WRITE(*,*)'IBPS ',K,IBPNBR(1,K),IBP(K),IBPNBR(2,K),ISEGCP(3,K)
+C     ENDDO
+C
+C   for internal segments, check for prior occurrances of first and last
+C
+      NXTBEG=NBEXT+1            ! seg number of first seg in next boundary
+      JBP=NBEXT
+      DO WHILE(NXTBEG.LT.NSEGT)
+        JBPS=JBP
+        NXTEND=NSEGT             ! applies if last boundary
+        K=NXTBEG
+        IFOUND=0
+C
+C    boundary sections are treated in sequence delimited by [NXTBEG,NXTEND]
+C
+        DO WHILE((IFOUND.EQ.0).AND.(K.LT.NSEGT))
+          IF(ISEGCP(3,K+1).NE.ISEGCP(3,K))THEN
+            NXTEND=K             ! last seg number in current boundary
+            IFOUND=1
+          ENDIF
+          K=K+1
+        ENDDO
+C       WRITE(*,*)'Boundary ',ISEGCP(3,K),' NXTBEG =',NXTBEG,
+C    :            ' NXTEND =',NXTEND
+C
+C  set up IBPNBR arrays to identify neighbour points and protect points
+C  on which the boundary label changes
+C
+        IFND1=0
+        IFND2=0
+        DO L=1,JBPS
+          IF(ISEGCP(1,NXTBEG).EQ.IBP(L))THEN
+            IFND1=L
+            IPROT(L)=1
+            IBPNBR(1,L+1)=IBP(L)
+C         WRITE(*,*)'Pro1ecting node IBP(L),X,Y',
+C    :               IBP(L),EX(IBP(L)),EY(IBP(L))
+          ENDIF
+          IF(ISEGCP(2,NXTEND).EQ.IBP(L))THEN
+            IFND2=L
+            IPROT(L)=1
+            IBPNBR(2,L)=IBP(L)
+C         WRITE(*,*)'Pro2ecting node IBP(L),X,Y',
+C    :               IBP(L),EX(IBP(L)),EY(IBP(L))
+          ENDIF
+        ENDDO
+        IF(IFND1.EQ.0)THEN       ! save unconnected first point
+          JBP=JBP+1
+          IBP(JBP)=ISEGCP(1,NXTBEG)
+          IBPNBR(2,JBP)=ISEGCP(2,NXTBEG)
+          IPROT(JBP)=1
+C         WRITE(*,*)'Pro3ecting node JBP,IBP(JBP),X,Y',
+C    :               JBP,IBP(JBP),EX(IBP(JBP)),EY(IBP(JBP))
+        ENDIF
+        DO M=NXTBEG,NXTEND-1     ! save intermediate points
+          JBP=JBP+1
+          IBP(JBP)=ISEGCP(2,M)
+          IBPNBR(1,JBP)=ISEGCP(1,M)
+          IBPNBR(2,JBP)=ISEGCP(2,M+1)
+        ENDDO
+        IF(IFND2.EQ.0)THEN       ! save unconnected last point
+          JBP=JBP+1
+          IBP(JBP)=ISEGCP(2,NXTEND) ! save unconnected last point
+          IBPNBR(1,JBP)=ISEGCP(1,NXTEND)
+          IPROT(JBP)=1
+C         WRITE(*,*)'Pro3ecting node JBP,IBP(JBP),X,Y',
+C    :               JBP,IBP(JBP),EX(IBP(JBP)),EY(IBP(JBP))
+        ENDIF
+        NXTBEG=NXTEND+1
+      ENDDO    !   DO WHILE(NXTBEG.LT.NSEGT)
+      IBPCNT=JBP           ! total number of points used in mesh spec.
       IF(IBPCNT.GT.IBPSIZE)THEN
         WRITE(*,*)'WARNING: IBPCNT > IBPSIZE ',IBPCNT,IBPSIZE,
      :            'in BNDSEGS, check setting'
         ERR=1
         STOP
       ENDIF
-      WRITE(*,10101)NSEG,IBPCNT,ICNTPRO
-10101 FORMAT('Mesh rebuild uses ',I5,' segments and ',I5' nodes with',
-     :       I4,' protected')
 C
-C    copy the segments into ISEGCP, changing indices for ISEGCP
+C    also protect any nodes where the boundary condition type changes
+C    first associate current boundary conditions with IBP arrays
 C
-      DO I=1,NSEG
-        ISEGCP(3,I)=ISEG(3,I)
-      END DO
-      DO I=1,NSEG
-        DO J=1,IBPCNT
-          IF (ISEG(1,I).EQ.IBP(J)) ISEGCP(1,I)=J
-          IF (ISEG(2,I).EQ.IBP(J)) ISEGCP(2,I)=J
-        END DO
-      END DO
+      NSET=0
+      DO LX=1,IBPCNT
+        IB=IBP(LX)
+        DO K=1,NBP            ! find entries for LX in IBC arrays
+          NK=IBC(K)
+          IF(NK.EQ.IB)THEN
+            LY=LX+IBPSIZE
+            IBPTYP(LX)=IBCTYP(K)
+            IBPTYP(LY)=IBCTYP(K+NBP)
+            RBND(LX)=QBND(K)
+            RBND(LY)=QBND(K+NBP)
+            NSET=NSET+1
+          ENDIF
+        ENDDO
+      ENDDO
+      WRITE(*,10100)NSET,IBPCNT
+10100 FORMAT('Boundary conditions saved for ',I5,
+     :       ' nodes in IBP array of size ',I5)
 C
-C    what follows is preparation for eliminating points too close
-C    first flag nodes that are endpoints or junctions, eligible 
-C    nodes for deletion are found in 2 segments, no more, no less.
+C     then find adjacent nodes and compare IBPTYP values
+C     depending on BC's this test may find some points twice or once
 C
+      DO LX=1,IBPCNT
+        IB=IBP(LX)
+        IBM1=IBPNBR(1,LX)
+        DO LM=1,IBPCNT          ! find entries for LX in IBC arrays
+          IF(IBP(LM).EQ.IBM1)LXM=LM
+        ENDDO
+        LY=LX+IBPSIZE
+        LYM=LXM+IBPSIZE
+        IF(((IBPTYP(LX).EQ.0).AND.(IBPTYP(LXM).NE.0)).OR.
+     :     ((IBPTYP(LY).EQ.0).AND.(IBPTYP(LYM).NE.0)))THEN
+          IPROT(LX)=1
+C         WRITE(*,*)'Protecting node LX,IBP(LX),X,Y',
+C    :               LX,IBP(LX),EX(IBP(LX)),EY(IBP(LX))
+        ENDIF
+        IF(((IBPTYP(LX).NE.0).AND.(IBPTYP(LXM).EQ.0)).OR.
+     :     ((IBPTYP(LY).NE.0).AND.(IBPTYP(LYM).EQ.0)))THEN
+          IPROT(LXM)=1
+C         WRITE(*,*)'Protecting node LXM,IBP(LX),X,Y',
+C    :               LXM,IBP(LXM),EX(IBP(LXM)),EY(IBP(LXM))
+        ENDIF
+      ENDDO
+C
+C    count how many nodes are protected
+C
+      JCOUNT=0                               ! no. of nodes to be removed
+      ICNTPRO=0
       DO J=1,IBPCNT
-        DO K=1,5
-          NBUSE(K,J)=0
-        ENDDO
+        ICNTPRO=ICNTPRO+IPROT(J)
       ENDDO
-      DO I=1,NSEG
-        NBUSE(1,ISEGCP(1,I))=NBUSE(1,ISEGCP(1,I))+1
-        NBUSE(1,ISEGCP(2,I))=NBUSE(1,ISEGCP(2,I))+1
-      ENDDO
+      WRITE(*,10101)NSEGT,IBPCNT,ICNTPRO
+10101 FORMAT('Mesh rebuild examines ',I5,' segments and ',I5,
+     :       ' nodes with',I4,' protected')
 C
-C    Store neighbour node addresses in NBUSE(2,J) and NBUSE(3,J)
-C    allowing that segments are in random order and either direction
-C    and store the SEG addresses in NBUSE(4,J) and NBUSE(5,J)
-C    beware that protected nodes NBUSE values are not set - because
-C    this method is unreliable if more than two segs connected to a node
+C    to decide which segments/nodes can be deleted, calculate neighbouring 
+C    segment lengths and angle subtended.  This section avoids start
+C    and end points of structures because such points are already protected
 C
-      DO I=1,NSEG
-        DO J=1,IBPCNT
-          IF(NBUSE(1,J).EQ.2)THEN
-            IF(ISEGCP(1,I).EQ.J)THEN
-              IF(NBUSE(2,J).EQ.0)THEN
-                NBUSE(2,J)=ISEGCP(2,I)
-                NBUSE(4,J)=I
-              ELSE
-                NBUSE(3,J)=ISEGCP(2,I)
-                NBUSE(5,J)=I
-              ENDIF
-            ELSE IF(ISEGCP(2,I).EQ.J)THEN
-              IF(NBUSE(2,J).EQ.0)THEN
-                NBUSE(2,J)=ISEGCP(1,I)
-                NBUSE(4,J)=I
-              ELSE
-                NBUSE(3,J)=ISEGCP(1,I)
-                NBUSE(5,J)=I
-              ENDIF
-            ENDIF
-          ENDIF
-        ENDDO
-      ENDDO
-C
-C    at this point NBUSE(1,J) contains 2 for nodes eligible for deletion
-C    deletion of any nodes may be avoided by setting NBUSE(1,J)=0
-C    First make nodes listed in IPROTECTED ineligible for deletion.
-C    These are identified in FINDPROTECTED and mark changes in bc's
-C
-      IF(ICNTPRO.GT.0)THEN
-        DO K=1,ICNTPRO
-          IPK=IPROTECTED(K)
-          DO J=1,IBPCNT
-            IF(IPK.EQ.IBP(J))NBUSE(1,J)=0
-          ENDDO
-        ENDDO
-      ENDIF
-C  
-C   next flag for removal duplicate nodes created for a fault
-C   i.e., if node in position J of IBP is found in IFBC1 (negative)
-C   if either node in a seg is in this group the seg also flagged
-C
-      NDUP=0
-      NDREM=0
-      IF((IFLT.GT.0).AND.(NFPF3.GT.0))THEN
-        DO J=1,IBPCNT
-          DO K=1,NFPF3
-            IF(IBP(J).EQ.-IFBC1(K))THEN
-              NDUP=NDUP+1
-              NBUSE(1,J)=-1
-            ENDIF
-          ENDDO
-        ENDDO
-        DO J=1,IBPCNT
-          IF(NBUSE(1,J).EQ.-1)THEN
-            ISEGCP(3,NBUSE(4,J))=-1
-            ISEGCP(3,NBUSE(5,J))=-1
-          ENDIF
-        ENDDO
-        DO I=1,NSEG
-          IF(ISEGCP(3,I).EQ.-1)NDREM=NDREM+1
-        ENDDO
-        IF((NDUP.GT.0).OR.(NDREM.GT.0))WRITE(*,10200)NDUP,NDREM
-      ENDIF
-10200 FORMAT('Duplicated nodes / segments used in fault(s) removed: ',
-     :       I5,' / ',I5)
-C
-C    calculate neighbouring segment lengths and angle subtended
-C
-      ICOUNT=0
+      ICOUNT=0                    ! no. of segs to include in average
       SEGAVL=0.0
       SEGMIN=99.9E+9
       SEGMAX=0.0
-      JCOUNT=0
       JMIN=0
-      DO J=1,IBPCNT
-        IF(NBUSE(1,J).EQ.2)THEN
-C         WRITE(*,*)J,NBUSE(2,J),NBUSE(3,J),EX(IBP(J)),
-C    :              EX(IBP(NBUSE(2,J))),EX(IBP(NBUSE(3,J)))
-          XDIF1=EX(IBP(NBUSE(2,J)))-EX(IBP(J))
-          YDIF1=EY(IBP(NBUSE(2,J)))-EY(IBP(J))
-          XDIF2=EX(IBP(J))-EX(IBP(NBUSE(3,J)))
-          YDIF2=EY(IBP(J))-EY(IBP(NBUSE(3,J)))
+      DO J=2,IBPCNT-1
+        IB=IBP(J)
+        IBM1=IBPNBR(1,J)
+        IBP1=IBPNBR(2,J)
+        IF(IABS(IPROT(J)).NE.1)THEN     ! avoid nodes protected or for deletion
+C         WRITE(*,*)'IBM1,IB,IBP1=',IBM1,IB,IBP1
+          XDIF1=EX(IBP1)-EX(IB)
+          YDIF1=EY(IBP1)-EY(IB)
+          XDIF2=EX(IB)-EX(IBM1)
+          YDIF2=EY(IB)-EY(IBM1)
           XDIF3=XDIF1+XDIF2
           YDIF3=YDIF1+YDIF2
           ASQUARE=XDIF1*XDIF1 + YDIF1*YDIF1
@@ -383,169 +367,372 @@ C    :              EX(IBP(NBUSE(2,J))),EX(IBP(NBUSE(3,J)))
             JMIN=J
           ENDIF
 C
-C   if angle subtended < 170 degrees, prevent deletion
+C   if angle subtended < 170 degrees, node is protected
 C
-          IF(COSSUB.GT.-0.98480775)THEN
-            NBUSE(1,J)=0
-            JCOUNT=JCOUNT+1
-C           WRITE(*,*)'BNDSEGS: retained nodes J,IBP(J),COSSUB=',
-C    :                JCOUNT,J,IBP(J),COSSUB
-          ENDIF
-        ENDIF
-      ENDDO
+          IF(COSSUB.GT.-0.98480775)IPROT(J)=1
+        ENDIF       ! if IPROT(J) .ne. 1
+      ENDDO         ! J=2,IBPCNT-1
       SEGAVL=SEGAVL/FLOAT(ICOUNT)
       THRESH=0.4*SEGAVL
       WRITE(*,10102)SEGMIN,SEGMAX,SEGAVL,THRESH
 10102 FORMAT('Segments, min: ',F12.5,', max: ',F12.5,', average:',
      :        F12.5,', threshold: ',F12.5)
-      IF(SEGMIN.GT.THRESH)GO TO 20
 C
 C   Start removing nodes for which the seg length a+b is less than
 C   THRESH - using 0.4 * average a+b.  First go to minimum (a+b)
 C   set flags to remove one node JMIN, and one seg, then remake 
 C   connections. Remove right side segment - either way should work
 C
-   15 CONTINUE
-      IF(JMIN.NE.0)THEN
-        NBUSE(1,JMIN)=-1              !  removed node flag
-        JLEFT=NBUSE(2,JMIN)           !  neighbour nodes
-        JRIGHT=NBUSE(3,JMIN)
-        NBUSE(1,JLEFT)=0              !  protect neighbour nodes
-        NBUSE(1,JRIGHT)=0
-        KLEFT=NBUSE(4,JMIN)           !  neighbour segments
-        KRIGHT=NBUSE(5,JMIN)
-        ISEGCP(3,KRIGHT)=-1           !  removed seg flag
-        WRITE(*,10103)JMIN,KRIGHT,KLEFT,JLEFT,JRIGHT,SEGMIN
-10103   FORMAT('Removing node ',I5,' and seg ',I5,' Retaining Seg ',I5,
-     :         '  (nodes ',I5,' - ',I5,' length ',F10.4,')')
-C       WRITE(*,*)'Removing Seg ',KRIGHT,' nodes ',
-C    :            ISEGCP(1,KRIGHT),ISEGCP(2,KRIGHT)
-C       WRITE(*,*)'Retaining Seg ',KLEFT,' nodes ',
-C    :            ISEGCP(1,KLEFT),ISEGCP(2,KLEFT)
-C
-C   connect retained segment to right node.  Note that left / right
-C   nodes may appear in either sequence in ISEGCP
-C
-        IF(ISEGCP(1,KLEFT).EQ.JLEFT)THEN
-          ISEGCP(2,KLEFT)=JRIGHT
-        ELSEIF(ISEGCP(2,KLEFT).EQ.JLEFT)THEN
-          ISEGCP(1,KLEFT)=JRIGHT
+      DO WHILE(SEGMIN.LT.THRESH)      ! repeated removals
+        IF(JMIN.EQ.0)THEN
+          WRITE(*,*)'There appears to be a problem in BNDSEGS: JMIN=0'
+          STOP
         ENDIF
-C
-C   re-assign left and right neighbours to JLEFT and JRIGHT
-C
-        IF(NBUSE(2,JLEFT).EQ.JMIN)THEN
-          NBUSE(2,JLEFT)=JRIGHT
-        ELSEIF(NBUSE(3,JLEFT).EQ.JMIN)THEN
-          NBUSE(3,JLEFT)=JRIGHT
-        ENDIF
-        IF(NBUSE(2,JRIGHT).EQ.JMIN)THEN
-          NBUSE(2,JRIGHT)=JLEFT
-        ELSEIF(NBUSE(3,JRIGHT).EQ.JMIN)THEN
-          NBUSE(3,JRIGHT)=JLEFT
-        ENDIF
-        SEGPRO(1,JRIGHT)=SEGPRO(1,JMIN)+SEGPRO(2,JMIN)
-C       WRITE(*,*)'JLEFT, neighbours',JLEFT,
-C    :             NBUSE(2,JLEFT),NBUSE(3,JLEFT)
-C       WRITE(*,*)'JRIGHT, neighbours',JRIGHT,
-C    :             NBUSE(2,JRIGHT),NBUSE(3,JRIGHT)
-C       WRITE(*,*)'seg lengths',SEGPRO(1,JMIN),SEGPRO(2,JMIN),
-C    :              SEGPRO(1,JRIGHT)
+        JCOUNT=JCOUNT+1               ! removing another node (JMIN)
+        IPROT(JMIN)=-1                ! flag for removal of IBP(JMIN)
+        IPROT(JMIN-1)=1               ! protect neighbour nodes
+        IPROT(JMIN+1)=1
+        SEGPRO(2,JMIN-1)=SEGMIN       ! update seg lengths either side
+        SEGPRO(1,JMIN+1)=SEGMIN
 C
 C   find new minimum seglength for unprotected nodes
 C
-      SEGMIN=SEGMAX
-      DO J=1,IBPCNT
-        IF(NBUSE(1,J).EQ.2)THEN
-          SEGL=SEGPRO(1,J)+SEGPRO(2,J)
-          IF(SEGL.LT.SEGMIN)THEN
-            SEGMIN=SEGL
-            JMIN=J
-          END IF
-        ENDIF
-      ENDDO
-      ENDIF                            ! JMIN .n. 0
+        SEGMIN=SEGMAX
+        DO J=2,IBPCNT-1
+          IF(IABS(IPROT(J)).NE.1)THEN    ! not protected or removed already
+            SEGL=SEGPRO(1,J)+SEGPRO(2,J)
+            IF(SEGL.LT.SEGMIN)THEN
+              SEGMIN=SEGL
+              JMIN=J
+            END IF
+          ENDIF
+        ENDDO
+C       WRITE(*,*)'New shortest seg: ',JMIN,' IBP(JMIN) ',IBP(JMIN),
+C    :            'length ',SEGMIN
 C
-C     WRITE(*,*)'New shortest seg: ',JMIN,'length ',SEGMIN,
-C    :          ' average seg length: ',SEGAVL
+C   Repeat node removal process if SEGMIN small enough
 C
-C   Repeat the node removal process if SEGMIN small enough
+      ENDDO         ! DO WHILE(SEGMIN.LT.THRESH)
 C
-      IF(SEGMIN.LT.THRESH)GO TO 15
-   20 CONTINUE
+C    In each case where a node is removed identify segment to be removed 
+C    (where IPROT(J)=-1 and IBP(JN)=ISEGCP(2,JRM)).
+C
+      DO JN=1,IBPCNT
+        IF(IPROT(JN).EQ.-1)THEN
+          IFOUND=0
+          JRM=0
+          DO WHILE ((IFOUND.EQ.0).AND.(JRM.LE.NSEGT))
+            JRM=JRM+1
+            IF(ISEGCP(2,JRM).EQ.IBP(JN))IFOUND=1
+          ENDDO
+          IF(JRM.NE.0)THEN
+            ISEGCP(3,JRM)=-1               ! flag to remove seg
+            ISEGCP(1,JRM+1)=ISEGCP(1,JRM)  ! reconnect kept segment
+          ELSE
+            WRITE(*,*)'BNDSEGS problem: seg with deleted node not found'
+            STOP
+          ENDIF
+          WRITE(*,10103)IBP(JN),JRM,JRM+1,
+     :                ISEGCP(1,JRM+1),ISEGCP(2,JRM+1)
+10103     FORMAT('Removing node ',I5,'  and segment ',I5,
+     :          '   Retaining Seg ',I5,'  (nodes ',I5,' - ',I5,')')
+        ENDIF                  ! IPROT(JN) = -1
+      ENDDO                    ! JN = 1,IBPCNT
+C
+C   Check the node and segment deletions add up
+C
       MAXN=0
-      DO I = 1,NSEG
+      DO I = 1,NSEGT
         IF(ISEGCP(3,I).LT.0)MAXN=MAXN+1
       ENDDO
       MAXS=0
       DO I = 1,IBPCNT
-        IF(NBUSE(1,I).LT.0)MAXS=MAXS+1
+        IF(IPROT(I).LT.0)MAXS=MAXS+1
       ENDDO
-      WRITE(*,10113)MAXN,MAXS
-10113 FORMAT('For removal: total nodes =',I5,' total segs =',I5)
-C
-C     WRITE(*,*)'ISEGCP array'
-C     DO I=1,NSEG
-C       WRITE(*,*)'ISEGCP',ISEGCP(1,I),ISEGCP(2,I),ISEGCP(3,I)
-C     ENDDO
-C
-C     Finally remove deleted nodes from the IBP and deleted SEGS
-C     from the ISEGCP arrays
-C
-C     Warning: if faults intersected boundaries or other faults
-C     we need to back out the replaced nodes at the intersection
-C     points in ISEGCP array.  This is not taken care of yet.
-C
-      NODDEL=0
-      DO J=1,IBPCNT
-        IF(NBUSE(1,J).EQ.-1)THEN
-          NODDEL=NODDEL+1
-        ELSE
-          IBP(J-NODDEL)=IBP(J)
-          DO I=1,NSEG
-            IF(ISEGCP(1,I).EQ.J)ISEGCP(1,I)=J-NODDEL
-            IF(ISEGCP(2,I).EQ.J)ISEGCP(2,I)=J-NODDEL
-          ENDDO
-        ENDIF
-      END DO
-      NEWNBP=IBPCNT-NODDEL
-      NSEGDEL=0
-      DO I=1,NSEG
-        IF(ISEGCP(3,I).EQ.-1)THEN
-          NSEGDEL=NSEGDEL+1
-        ELSE
-          DO K=1,3
-            ISEGCP(K,I-NSEGDEL)=ISEGCP(K,I)
-          ENDDO
-        ENDIF
-      END DO
-      NSEGNEW=NSEG-NSEGDEL
-C
-C    final check that all nodes in ISEG present in IBP
-C
-      MAXIM=0
-      DO I = 1,NSEGNEW
-        IF(ISEGCP(1,I).GT.MAXIM)MAXIM=ISEGCP(1,I)
-        IF(ISEGCP(2,I).GT.MAXIM)MAXIM=ISEGCP(2,I)
-      ENDDO
-C     WRITE(*,*)'End BNDSEGS, NSEGNEW,MAXIM = ',NSEGNEW,MAXIM
-      IF(MAXIM.GT.NEWNBP)THEN
-         WRITE(*,*)'Something wrong in BNDSEGS'
-         IERR=1
-         RETURN
+      IF((JCOUNT.NE.MAXN).OR.(JCOUNT.NE.MAXS))THEN
+        WRITE(*,10114)MAXN,MAXS,JCOUNT
+10114   FORMAT('Problem with node removal: MAXN =',I4,' MAXS =',I4,
+     :         '  JCOUNT - ',I4)
+      ELSE
+        WRITE(*,10113)MAXN,MAXS
+10113   FORMAT('A total of ',I4,' nodes and ',I4,' segments will be ',
+     :         'removed from the present SEG array')
       ENDIF
 C
-C     create poly struct, based now on NEWNBP nodes.  NEWNBP is the
-C     number of vertex nodes that are passed to triangle for mesh
-C     building (no duplicates)
+C     Remove deleted nodes from the IBP and deleted SEGS
+C     from the ISEGCP arrays
 C
-      CALL REMESH_DATA(IBP,ISEGCP,NEWNBP,NSEGNEW,IERR)
+      INEW=0
+      DO I=1,NSEGT
+        IF(ISEGCP(3,I).NE.-1)THEN
+          INEW=INEW+1
+          DO K=1,3
+            ISEGCP(K,INEW)=ISEGCP(K,I)
+          ENDDO
+        ENDIF
+      END DO
+      NSEGNEW=INEW
+      JNEW=0
+      DO J=1,IBPCNT
+        IF(IPROT(J).NE.-1)THEN
+          JNEW=JNEW+1
+          IBP(JNEW)=IBP(J)
+          IPROT(JNEW)=IPROT(J)
+          IBPTYP(JNEW)=IBPTYP(J)
+          IBPTYP(JNEW+IBPSIZE)=IBPTYP(J+IBPSIZE)
+          RBND(JNEW)=RBND(J)
+          RBND(JNEW+IBPSIZE)=RBND(J+IBPSIZE)
+        ENDIF
+      END DO
+      NEWNBP=JNEW
+C     WRITE(*,*)'NSEG,NSEGNEW,NEWNBP',NSEGT,NSEGNEW,NEWNBP
+C
+C   finally swap the node numbers in ISEG for the index positions in IBP
+C   sign-swapping to avoid more than one change in each ISEG entry
+C
+      DO J=1,NEWNBP
+        NODN=IBP(J)
+        DO I=1,NSEGNEW
+          IF(ISEGCP(1,I).EQ.NODN)ISEGCP(1,I)=-J
+          IF(ISEGCP(2,I).EQ.NODN)ISEGCP(2,I)=-J
+        ENDDO
+      ENDDO
+      DO I=1,NSEGNEW
+        ISEGCP(1,I)=-ISEGCP(1,I)
+        ISEGCP(2,I)=-ISEGCP(2,I)
+        IF((ISEGCP(1,I).LT.0).OR.(ISEGCP(2,I).LT.0))THEN
+          WRITE(*,*)'Swapping nodes for indices in BNDSEGS appears ',
+     :          'to have failed somehow, ISEG =',(ISEGCP(J,I),J=1,3)
+          IERR=1
+          STOP
+        ENDIF
+      ENDDO
+C
+C     write the arrays for checking if verbose mode set
+C
+      IF(IVERB.NE.0)THEN
+        OPEN(12,FILE='SEGr')
+        WRITE(12,*)'IBP array: K IBP(K) EX EY IBPTYP(x,y),IPROT'
+        DO K=1,NEWNBP
+          NKB=IBP(K)
+          WRITE(12,'(I4,I6,2F10.5,2I4,2F10.5,I4)')K,NKB,
+     :      EX(NKB),EY(NKB),IBPTYP(K),IBPTYP(K+IBPSIZE),
+     :      RBND(K),RBND(K+IBPSIZE),IPROT(K)
+        ENDDO
+        WRITE(12,*)'SEG array prior to new mesh generation'
+        DO K=1,NSEGNEW
+          WRITE(12,'(4I6)')K,ISEGCP(1,K),ISEGCP(2,K),ISEGCP(3,K)
+        ENDDO
+        CLOSE(12)
+      ENDIF
+      IF(IERR.NE.0)RETURN
+C
+C     create poly struct, based now on NEWNBP nodes.  NEWNBP is the
+C     number of vertex nodes that are passed to triangle for mesh rebuild
+C
+      CALL REMESH_DATA(IBP,ISEGCP,IBPTYP,RBND,NEWNBP,NSEGNEW,
+     :                 IBPSIZE,IVERB,IERR)
+C
+C    seems to be a question whether the DEALLOCATES are necessary
+C
+      DEALLOCATE(IBP)
+      DEALLOCATE(IBPTYP)
+      DEALLOCATE(RBND)
+      DEALLOCATE(IPROT)
+      DEALLOCATE(SEGPRO)
+      DEALLOCATE(ISEGCP)
+      DEALLOCATE(IBPNBR)
       RETURN
       END SUBROUTINE BNDSEGS
 C
 C**************************************************************************
 C
-      SUBROUTINE LOCNOD(EX,EY,EXNEW,EYNEW,LEM,NOR,
+      SUBROUTINE REORDR(ISEG,ISEGCP,NSEG,NBEXT,INBTOT)
+C
+C    The purpose of this subroutine is to reorganise the SEG array so
+C    that we can check continuity etc.
+C
+      DIMENSION ISEG(3,NSEG),ISEGCP(3,NSEG)
+C
+C   Count the number of SEGS with A. Label < 1000 (external), or
+C    B. in next label number, until all SEGS accounted for
+C
+      IEMAX=1000          ! initially for external boundary
+      LABMAX=3000
+      IEMIN=0
+      NLABMIN=IEMAX
+      NLABMAX=0
+      NKL=0
+      ISP=0
+      IEXT=1
+      INBTOT=0
+      WRITE(*,10001)NSEG
+10001 FORMAT('A total of ',I5,' segments are transcribed in sequence')
+      DO WHILE((ISP.LT.NSEG).AND.(NLABMIN.LT.LABMAX))
+C
+C  external boundary: find min and max label numbers and count segments.
+C
+        NXT=0
+        IF(IEXT.EQ.1)THEN
+          DO K=1,NSEG
+            NL=ISEG(3,K)
+            IF(NL.LT.IEMAX)THEN
+              NXT=NXT+1            ! no. of SEGS in current boundary section
+              IF(NL.GT.NLABMAX)NLABMAX=NL
+              IF(NL.LT.NLABMIN)NLABMIN=NL
+            ENDIF
+          ENDDO
+C
+C   internal boundary: find next smallest label number and count segments
+C
+        ELSE
+          NPLAB=NLABMAX+1
+          IF(NPLAB.LT.IEMAX)NPLAB=IEMAX
+          NLABMIN=LABMAX
+          DO K=1,NSEG
+            NL=ISEG(3,K)
+            IF((NL.GE.NPLAB).AND.(NL.LT.NLABMIN))NLABMIN=NL
+          ENDDO
+          NLABMAX=NLABMIN
+          DO K=1,NSEG
+            NL=ISEG(3,K)
+            IF(NL.EQ.NLABMIN)NXT=NXT+1
+          ENDDO
+        ENDIF
+C       WRITE(*,*)'for NLABMIN / MAX =',NLABMIN,NLABMAX,' NXT =',NXT
+C
+C   find the smallest node number that is unmatched in NLABMIN
+C   so presumably marks the start of a boundary section
+C
+        NODMIN=0
+        DO K=1,NSEG
+          IF(ISEG(3,K).EQ.NLABMIN)THEN
+            DO L=1,2
+              IPAIR=0
+              DO J=1,NSEG
+                IF((ISEG(3,J).EQ.NLABMIN).AND.(J.NE.K))THEN
+                  IF((ISEG(L,K).EQ.ISEG(1,J)).OR.
+     :               (ISEG(L,K).EQ.ISEG(2,J)))IPAIR=1
+                ENDIF     !   is a matching node number found
+              ENDDO
+              IF(IPAIR.EQ.0)THEN
+C               WRITE(*,*)'unpaired: L =',L,' node =',ISEG(L,K),
+C    :          ' label =',ISEG(3,K)
+                IF((ISEG(L,K).LT.NODMIN).OR.(NODMIN.EQ.0))THEN
+                  NODMIN=ISEG(L,K)
+                  NODSEG=K
+                ENDIF
+              ENDIF       !  no pair found
+            ENDDO
+          ENDIF           !  on section LABMIN
+        ENDDO
+C
+C   if no unmatched node is found, assume the boundary is a closed loop
+C   and just choose the smallest node number to start with
+C
+        IF(NODMIN.EQ.0)THEN
+          DO K=1,NSEG
+            IF((ISEG(3,K).GE.NLABMIN).AND.(ISEG(3,K).LE.NLABMAX))THEN
+              IF(ISEG(1,K).LT.NODMIN)THEN
+                NODMIN=ISEG(1,K)
+                NODSEG=K
+              ENDIF
+              IF(ISEG(2,K).LT.NODMIN)THEN
+                NODMIN=ISEG(2,K)
+                NODSEG=K
+              ENDIF
+            ENDIF
+          ENDDO
+        ENDIF
+C
+C  we begin to transcribe the segments, starting with the segment 
+C  SEGMIN and node NODMIN, just determined
+C
+        J=ISP+1
+        NKL=NKL+1
+        ISEGCP(1,J)=NODMIN
+        ISEGCP(3,J)=NLABMIN
+        IF(ISEG(1,NODSEG).EQ.NODMIN)THEN
+          ISEGCP(2,J)=ISEG(2,NODSEG)
+        ELSE
+          ISEGCP(2,J)=ISEG(1,NODSEG)
+        ENDIF
+        ISEG(3,NODSEG)=-ISEG(3,NODSEG)    ! to flag it as done
+C       WRITE(*,*)'entry J',J,ISEGCP(1,J),ISEGCP(2,J),ISEGCP(3,J)
+C
+C  progressively transcribe the remaining entries for SEGS on the
+C  current boundary section
+C
+        DO WHILE(J.LT.(ISP+NXT))  ! while we still have boundary segments to fill
+          IFOUND=0
+          JP1=J+1
+          K=0
+          DO WHILE((IFOUND.EQ.0).AND.(K.LE.NSEG))
+            K=K+1
+            NL=ISEG(3,K)
+            IF((NL.GE.0).AND.(NL.LE.NLABMAX))THEN
+              IF(ISEG(1,K).EQ.ISEGCP(2,J))THEN
+                ISEGCP(1,JP1)=ISEG(1,K)
+                ISEGCP(2,JP1)=ISEG(2,K)
+                ISEGCP(3,JP1)=ISEG(3,K)
+                ISEG(3,K)=-ISEG(3,K)
+                IFOUND=1
+                NKL=NKL+1
+              ELSE IF(ISEG(2,K).EQ.ISEGCP(2,J))THEN
+                ISEGCP(1,JP1)=ISEG(2,K)
+                ISEGCP(2,JP1)=ISEG(1,K)
+                ISEGCP(3,JP1)=ISEG(3,K)
+                ISEG(3,K)=-ISEG(3,K)
+                IFOUND=1
+                NKL=NKL+1
+              END IF      !  if next segment found
+            ENDIF         !  if label for external segment
+          ENDDO
+          J=JP1
+C         IF(IEXT.EQ.1)
+C      :  WRITE(*,*)'entry J',J,ISEGCP(1,J),ISEGCP(2,J),ISEGCP(3,J)
+        ENDDO
+C
+C   check if this boundary section is closed or open
+C
+        IF(IEXT.EQ.1)THEN     ! if external boundary
+          NBEXT=NXT
+          IF(ISEGCP(2,J).EQ.ISEGCP(1,ISP+1))THEN
+            WRITE(*,10002)ISEGCP(1,ISP+1),NBEXT
+10002       FORMAT('The external boundary is closed at node ',I6,
+     :             ' with ',I4,' segments')
+          ELSE
+            WRITE(*,10003)
+10003       FORMAT('REORDR: Warning, external boundary appears to',
+     :                 'not close')
+          ENDIF
+        ELSE                 ! if internal boundary section
+          INBTOT=INBTOT+1
+          IF(ISEGCP(2,J).EQ.ISEGCP(1,ISP+1))THEN
+            WRITE(*,10004)NLABMIN,ISEGCP(1,ISP+1),NXT
+10004       FORMAT('Boundary ',I5,' is closed at node ',I7,' with ',I4,
+     :              'segments')
+          ELSE
+            WRITE(*,10005)NLABMIN,ISEGCP(1,ISP+1),ISEGCP(2,J),NXT
+10005       FORMAT('Boundary ',I5,' starts and ends at nodes ',I6,
+     :             ' and ',I6,' with ',I4,' segments')
+           ENDIF
+        ENDIF
+        ISP=ISP+NXT         ! running total of resequenced segments
+        IEXT=0              ! further boundary segments are internal
+      ENDDO                 ! end of the main loop on sections
+C
+      IF(ISP.NE.NSEG)THEN
+        WRITE(*,10006)ISP
+10006   FORMAT('Segment re-assignment in REORDR appears to have ',
+     :         'a problem, ISP = ',I6)
+      ENDIF
+      RETURN
+      END
+C
+C**************************************************************************
+C
+      SUBROUTINE LOCNOD(EX,EY,EXNEW,EYNEW,LEM,
      :                  LENO,ELAD,NE,NUP,NEWNUP,NPTOUT)
 C
 C    Routine to identify locations of new nodes in old mesh, prior
@@ -553,7 +740,7 @@ C    to interpolation. Locations are identified by 1) element number
 C    LENO(NEWNUP) and 2) local coordinates ELAD(3,NEWNUP)
 C
       DIMENSION LENO(NEWNUP),ELAD(3,NEWNUP)
-      DIMENSION EX(NUP),EY(NUP),LEM(6,NE),NOR(NUP)
+      DIMENSION EX(NUP),EY(NUP),LEM(6,NE)
       DIMENSION EXNEW(NEWNUP),EYNEW(NEWNUP)
       DOUBLE PRECISION COOL(3),QOOL(6),XCOLD,YCOLD,XOLD(3),YOLD(3)
       DOUBLE PRECISION TRI,X3M1,Y3M1,X1M2,Y1M2
@@ -589,7 +776,7 @@ C
           XCOLD=0.D0
           YCOLD=0.D0
           DO K=1,3
-            LK=NOR(LEM(K,N))
+            LK=LEM(K,N)
             XOLD(K)=EX(LK)
             YOLD(K)=EY(LK)
             XCOLD=XCOLD+XOLD(K)
@@ -678,8 +865,8 @@ C
 C
 C***********************************************************************
 C
-      SUBROUTINE NTRPLT(UVPO,UVPN,BGU,LEM,NOR,LENO,ELAD,NE,NUP,
-     :                  NEWNUP,IQ)
+      SUBROUTINE NTRPLT(UVPO,UVPN,BGU,LEM,
+     :                  LENO,ELAD,NE,NUP,NEWNUP,IQ)
 C
 C    Routine to interpolate the nodal values from the old finite
 C     element mesh onto a new mesh using the location parameters
@@ -687,7 +874,7 @@ C     obtained by LOCNOD
 C
       DIMENSION UVPO(NUP),UVPN(NEWNUP)
       DIMENSION LENO(NEWNUP),ELAD(3,NEWNUP)
-      DIMENSION LEM(6,NE),NOR(NUP)
+      DIMENSION LEM(6,NE)
       DOUBLE PRECISION COOL(3),QOOL(6),VPO(6)
       IF((IQ.LE.0).OR.(IQ.GT.2))THEN
         WRITE(*,*)'Invalid value of IQ used in NTRPLT; stopping'
@@ -709,7 +896,7 @@ C     get the (old) nodal values for this element
 C   IQ=2 for quadratic interpolation, =1 for linear interpolation
 C
         DO K=1,3*IQ
-          LK=NOR(LEM(K,NNEAR))
+          LK=LEM(K,NNEAR)
           VPO(K)=UVPO(LK)
         ENDDO
 C
@@ -747,8 +934,8 @@ C
 
       SUBROUTINE NTRPLTD(IDEN,ODMESH,RDMESH,BGD,IVV,OVMESH,RVMESH,BGV,
      :                  ITHDI,OTHDINT,THDINT,BGDI,
-     :                  EX,EY,EXNEW,EYNEW,LEM,LEMNEW,NOR,IMAT,IMATNEW,
-     :                  NE,NUP,NEWNE,NEWNUP,IMREG)
+     :                  EX,EY,EXNEW,EYNEW,LEM,LEMNEW,
+     :                  IMAT,IMATNEW,NE,NUP,NEWNE,NEWNUP,IMREG)
 C
 C    Routine to interpolate the values from integration points of
 C    the finite element mesh onto a new mesh, used by remesh_data
@@ -766,7 +953,6 @@ C
       DIMENSION EX(NUP),EY(NUP),LEM(6,NE)
       DIMENSION EXNEW(NEWNUP),EYNEW(NEWNUP),LEMNEW(6,NEWNE)
       DIMENSION IMAT(NE),IMATNEW(NEWNE)
-      DIMENSION NOR(NUP)
 C
 C   the following matrix is the 7x6 matrix that projects from the
 C   7 interpolation points to a best fit set of 6 nodal values
@@ -1040,7 +1226,7 @@ C
 C    min and max of new array (for debugging)
 C
       IF(IDEN.GT.0)THEN
-        CALL REPORT(ODMESH,7,NE,1,7,DEMINA,DEMAXA)
+        CALL REPORT(RDMESH,7,NEWNE,1,7,DEMINA,DEMAXA)
         WRITE(LSC,1002)'Density:  ',DEMINB,DEMINA,DEMAXB,DEMAXA
       ENDIF
       IF(IVV.GT.0)THEN
@@ -1104,8 +1290,7 @@ C
       END
 C
       SUBROUTINE SETMAT(EX,EY,EXNEW,EYNEW,LEM,LEMNEW,
-     :                  NOR,IMAT,IMATNEW,
-     :                  NE,NUP,NEWNE,NEWNUP,IERR)
+     :                  IMAT,IMATNEW,NE,NUP,NEWNE,NEWNUP,IERR)
 C
 C    Routine to set the region IMAT values for the elements
 C    onto a new mesh.  Calling of this routine follows call to
@@ -1119,7 +1304,6 @@ C
       DIMENSION EX(NUP),EY(NUP),LEM(6,NE)
       DIMENSION EXNEW(NEWNUP),EYNEW(NEWNUP),LEMNEW(6,NEWNE)
       DIMENSION IMAT(NE), IMATNEW(NEWNE)
-      DIMENSION NOR(NUP)
       DATA PI,PION2,DTOR/3.141592653,1.570796327,1.7453292519943295E-2/
 C
       EPS=1.D-12    ! used to determine if point is inside or just outside
@@ -1155,7 +1339,7 @@ C
           XCO=0.0
           YCO=0.0
           DO J=1,3
-            LKJ=NOR(LEM(J,I))
+            LKJ=LEM(J,I)
             XOLD(J)=EX(LKJ)
             YOLD(J)=EY(LKJ)
             XCO=XCO+XOLD(J)
@@ -1261,112 +1445,6 @@ C
 C
       RETURN
       END
-      SUBROUTINE FINDPROTECTED(NUMPROTECTED,FOUND,
-     :                        IBCTYP,IBC,IBNGH,ISEG,
-     :                        NOR,NBP,NN,NUP,NSEG)
-C      
-C      this routine will only find external vertices which
-C       mark a change in boundary conditions
-C       intersect with an internal boundary
-C     
-      INCLUDE "limits.parameters"
-      DIMENSION IBC(NBP)
-      DIMENSION IBCTYP(NBP*2)
-      DIMENSION IBNGH(NBP*2)
-      DIMENSION NOR(NUP),ISEG(3,NSEG)
-      LOGICAL FOUND(NBP)
-C
-      DO I=1,NBP
-        FOUND(I)=.FALSE.
-      END DO
-      NUMPROTECTED=0
-      DO 25 I=1,NBP
-        IF (IBC(I).GT.NN) THEN
-          IBNX = IBCTYP(I)
-          IBNY = IBCTYP(I+NBP)
-          NODENB1= IBNGH(I)
-          NODENB2= IBNGH(I+NBP)
-          DO J=1,NBP
-            IF (IBC(J).EQ.NODENB1) THEN
-              IBNX1 = IBCTYP(J)
-              IBNY1 = IBCTYP(J+NBP)
-              IF ((FOUND(J).EQV..FALSE.).AND.
-     :                    (IBNX.NE.IBNX1.OR.IBNY.NE.IBNY1)) THEN
-                NUMPROTECTED = NUMPROTECTED+1
-                FOUND(J) = .TRUE.
-              END IF
-              GO TO 25
-            ELSE IF (IBC(J).EQ.NODENB2) THEN
-              IBNX2 = IBCTYP(J)
-              IBNY2 = IBCTYP(J+NBP)
-              IF ((FOUND(J).EQV..FALSE.).AND.
-     :                    (IBNX.NE.IBNX2.OR.IBNY.NE.IBNY2)) THEN
-                NUMPROTECTED = NUMPROTECTED+1
-                FOUND(J) = .TRUE.
-              END IF
-              GO TO 25
-            END IF
-          END DO
-        END IF
-  25  CONTINUE
-      DO I=1,NSEG
-        NNODE1 = ISEG(1,I)
-        NNODE2 = ISEG(2,I)
-        DO K=1,NBP
-          IF (IBC(K).EQ.NNODE1) INDX1=K
-          IF (IBC(K).EQ.NNODE2) INDX2=K
-        END DO
-        DO J=I+1,NSEG
-          IF ((FOUND(INDX1).EQV..FALSE.).AND.(ISEG(1,J).EQ.NNODE1.OR.
-     :                      ISEG(2,J).EQ.NNODE1)) THEN
-            IF ((ISEG(3,J).NE.ISEG(3,I)).AND.
-     :          (ISEG(3,J).GE.EXTMIN.AND.
-     :              ISEG(3,J).LE.INTLMAX)) THEN
-              NUMPROTECTED = NUMPROTECTED+1
-C     print *,ISEG(1,I),ISEG(3,I),ISEG(1,J),ISEG(2,J),ISEG(3,J)
-              FOUND(INDX1)=.TRUE.
-            END IF
-          END IF
-          IF ((FOUND(INDX2).EQV..FALSE.).AND.(ISEG(1,J).EQ.NNODE2.OR.
-     :                      ISEG(2,J).EQ.NNODE2)) THEN
-            IF ((ISEG(3,J).NE.ISEG(3,I)).AND.
-     :          (ISEG(3,J).GE.EXTMIN.AND.
-     :              ISEG(3,J).LE.INTLMAX)) THEN
-              NUMPROTECTED = NUMPROTECTED+1
-C     print *,ISEG(2,I),ISEG(3,I),ISEG(1,J),ISEG(2,J),ISEG(3,J)
-              FOUND(INDX2)=.TRUE.
-            END IF
-          END IF
-        END DO
-      END DO
-C
-      RETURN
-      END
-C
-      SUBROUTINE SETPROTECTED(NUMPROTECTED,IPROTECTED,FOUND,
-     :                        IBC,NOR,NBP,NUP,IERR)
-C      
-C      this routine sets the array IPROTECTED, for use in the
-C        remesh operation.
-C     
-      DIMENSION IBC(NBP)
-      DIMENSION NOR(NUP)
-      INTEGER IPROTECTED(NUMPROTECTED)
-      LOGICAL FOUND(NBP)
-C
-      ICNT=0
-      DO I=1,NBP
-        IF (FOUND(I).EQV..TRUE.) THEN
-          ICNT = ICNT+1
-          IF (ICNT.GT.NUMPROTECTED) THEN
-            IERR = 1
-            GO TO 5
-          END IF
-          IPROTECTED(ICNT)=NOR(IBC(I))
-        END IF
-      END DO
-  5   RETURN
-      END
 C
       REAL FUNCTION ANGLECALC(X,Y)
 C      Calculate the angle between segment X(1),Y(1) to X(2),Y(2) and 
@@ -1416,5 +1494,91 @@ C        segment X(1),Y(1) to X(3),Y(3)
 C
       AREA = RV(IELAREA)
       QUALITY = RV(IELQUAL)
+      RETURN
+      END
+
+      SUBROUTINE TNDRL(ISEGCP,NSEG,NSEGT,EX,EY,NUP,NBEXT)
+C
+C   This routine is designed to remove segments from an internal
+C   boundary that has been folded to form a vertical "needle".  The object
+C   is to remove the needle without badly affecting the adjoining boundary
+C   Beware that this action can transfers minor material from one domain 
+C   to another, which could cause other problems, but it is in place here
+C   because any mesh created with a needle-like tendril will introduce
+C   efficiency and accuracy problems, generally causing the code to fail
+C   in convergence. If causing problems, comment out the CALL to TNDRL.
+C
+      INTEGER, DIMENSION(:), POINTER :: IREM
+      DIMENSION ISEGCP(3,NSEG)
+      DIMENSION EX(NUP),EY(NUP)
+      ALLOCATE(IREM(NSEG),STAT=IERR)
+C
+C    For each internal segment (excluding first and last) find the
+C    gradient.  If 'too large' flag that segment for deletion
+C
+      GMAX=10.0
+      NODCON=0
+      DO J=NBEXT+1,NSEG
+        IREM(J)=0
+      ENDDO
+      JREM=0
+      EXMIN=9999.99
+      EXMAX=-9999.99
+      NODCON=0
+      DO J=NBEXT+2,NSEG-1
+        IF(((ISEGCP(3,J)-ISEGCP(3,J+1)).EQ.0).AND.
+     :     ((ISEGCP(3,J)-ISEGCP(3,J-1)).EQ.0))THEN
+          J1=ISEGCP(1,J)
+          J2=ISEGCP(2,J)
+          GL=(EY(J2)-EY(J1))/(EX(J2)-EX(J1))
+          IF(ABS(GL).GT.GMAX)THEN
+            IREM(J)=1
+            JREM=JREM+1             ! counter of segs removed
+            IF(EX(J2).GT.EXMAX)EXMAX=EX(J2)
+            IF(EX(J2).LT.EXMIN)EXMIN=EX(J2)
+            IF((IREM(J-1).NE.1).AND.(NODCON.EQ.0))THEN
+              NODCON=ISEGCP(2,J-1)
+              EXL=EX(NODCON)
+              EYL=EY(NODCON)
+C             WRITE(*,*)J,ISEGCP(1,J-1),ISEGCP(2,J-1),ISEGCP(3,J-1)
+            ENDIF
+C
+C    the node that replaces the removed section is moved to average
+C    coordinates of the two proximal retained nodes
+C
+          ELSE
+            IF((NODCON.NE.0).AND.(IREM(J-1).EQ.1))THEN
+              EXR=EX(ISEGCP(1,J))
+              EYR=EY(ISEGCP(1,J))
+              ISEGCP(1,J)=NODCON
+              EX(NODCON)=0.5*(EXL+EXR)
+              EY(NODCON)=0.5*(EYL+EYR)
+C             WRITE(*,*)J,ISEGCP(1,J),ISEGCP(2,J),ISEGCP(3,J)
+              NODCON=0
+            ENDIF
+          ENDIF
+        ENDIF
+      ENDDO
+      IF(JREM.GT.0)WRITE(*,10099)JREM,NSEG,EXMIN,EXMAX,GMAX
+10099 FORMAT('TNDRL Removed ',I5,' nodes of ',I5,' between X =',F9.5,
+     : ' and X =',F9.5,' for slope > ',F6.3)
+C
+C    condense the segment array, ignoring removed segments
+C
+      JN=NBEXT
+      DO J=NBEXT+1,NSEG
+        IF(IREM(J).EQ.0)THEN
+          JN=JN+1
+          DO K=1,3
+            ISEGCP(K,JN)=ISEGCP(K,J)
+          ENDDO
+        ENDIF
+      ENDDO
+      NSEGT=JN             ! the new segment array size
+C     DO J=NBEXT+1,NSEGT
+C       WRITE(*,*)J,ISEGCP(1,J),ISEGCP(2,J),ISEGCP(3,J),
+C    :  EX(ISEGCP(1,J)),EX(ISEGCP(2,J))
+C     ENDDO
+      DEALLOCATE(IREM)
       RETURN
       END

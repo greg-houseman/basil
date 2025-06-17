@@ -20,7 +20,8 @@ C
      :                    'TOPO        ',
      :                    'TOPOFILTER  ',
      :                    'SPHERICAL   ',
-     :                    'PB          '/
+     :                    'PB          ',
+     :                    'GPE         '/
       DATA TIMESTEPTERMS /'STEPSIZE    ',
      :                    'STOP        ',
      :                    'SAVE        ',

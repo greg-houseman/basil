@@ -17,6 +17,8 @@
 #define GREY_MAP	   100
 #define STD_MAP 	   101
 #define ABS_MAP 	   102
+#define HAW_MAP		   103
+#define ROM_MAP            104
 
 #define DEFAULT_OPTIONS_FILE "sybil.in"
 #define DEFAULT_LOG_FILE "sybil.log"
@@ -27,10 +29,10 @@
 #define DEFAULT_LGE_FONTHGT   24
 
 /* window defaults to A4 (29.7x21.0cm) */
-/* reduce to 28.4x19.7cm to allow for printer clipping */
+/* reduced by 4% in X and Y to allow for printer clipping */
 /* USLetter (21.59x27.94cm) reduce to 20.29x26.64 */
-#define DEFAULTWIDTH 197.0
-#define DEFAULTHEIGHT 284.0
+#define DEFAULTWIDTH 201.6
+#define DEFAULTHEIGHT 285.12
 #define USLETTERWIDTH 202.9
 #define USLETTERHEIGHT 266.4
 #define A4_PAPER           0

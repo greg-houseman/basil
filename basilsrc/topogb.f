@@ -9,12 +9,11 @@ C    Routines for input of data in longitude, latitude, elevation(m)
 C      TOPODATA,TOPOINTRP,PROJECTXY,TRANSLATEMESH,GETPOLE,ROTATE
 C      Function BILINEAR
 C
-      SUBROUTINE TOPODATA(FILER,ITYPE,GXMIN,GYMIN,GXMAX,GYMAX,
-     :                    EX,EY,SSQ,NOR,NUP,
+      SUBROUTINE TOPODATA(FILER,ITYPE,SCLFAC,EX,EY,SSQ,NUP,
      :                    HLENSC,BDEPSC,RISOST,REFLEV,IERR)
 C
-C    Routine to read data from a digital elevation file of type
-C    ITYPE: remains to be defined for different types.  At present
+C    Routine to read data from a digital elevation file or a GPE file
+C    ITYPE = 1 for topography in m, ITYPE = 2 for GPE.  At present
 C    this routine assumes an ascii format xyz file with triplets 
 C    of values (long, lat, elev) on a regular grid, with constant
 C    and equal spacing in both lat and long directions. Extreme
@@ -23,17 +22,16 @@ C
 C    The total number of data points should be less than MAXTOPO
 C    as this is the length of the X,Y,ELEV arrays
 C    MAXTOPO is set in limits.parameters and can be changed as 
-C    these arrays are local to topog.f
+C    these arrays are local to topogb.f
 C
       INCLUDE "limits.parameters"
       COMMON/AI/LUW,LSC,LBC,LLG
       CHARACTER FILER*60,INSTR*80,WORD*12
       DIMENSION X(MAXTOPO),Y(MAXTOPO),ELEV(MAXTOPO)
-      DIMENSION EX(NUP),EY(NUP),SSQ(NUP),NOR(NUP)
+      DIMENSION EX(NUP),EY(NUP),SSQ(NUP)
       DIMENSION GRDDAT(3)
 C
       LDIN=2
-      EPS=1e-4
 C
 C    find the min and max values of latitude (GY) and
 C    longitude (GX) in the dataset
@@ -68,22 +66,25 @@ C
       DINC=0.5*(SUM+SQRT(SUM*SUM+4*AREA*(NREC-1)))/(NREC-1)
       NCOL=INT((GXMAX-GXMIN+EPS)/DINC)+1
       NROW=INT((GYMAX-GYMIN+EPS)/DINC)+1
+      EPS=0.1*DINC
 C
 C    print parameters for data file, assuming regularly spaced data,
 C    with equal grid spacing in each of X and Y directions,  NCOL and NROW
 C    are inferred number of rows and colums in the dataset
 C
-        WRITE(LSC,1005)NREC,FILER
-        WRITE(LUW,1005)NREC,FILER
-        WRITE(LSC,1003)GXMIN,GXMAX,DINC
-        WRITE(LUW,1003)GXMIN,GXMAX,DINC
-        WRITE(LSC,1004)GYMIN,GYMAX,DINC
-        WRITE(LUW,1004)GYMIN,GYMAX,DINC
- 1003   FORMAT('Dataset longitude range:',F10.2,' to ',F10.2,' step :',
+      IF(ITYPE.EQ.1)WRITE(LSC,1005)NREC,FILER
+      IF(ITYPE.EQ.2)WRITE(LSC,1006)NREC,FILER
+      WRITE(LUW,1005)NREC,FILER
+      WRITE(LSC,1003)GXMIN,GXMAX,DINC
+      WRITE(LUW,1003)GXMIN,GXMAX,DINC
+      WRITE(LSC,1004)GYMIN,GYMAX,DINC
+      WRITE(LUW,1004)GYMIN,GYMAX,DINC
+ 1003 FORMAT('Dataset longitude range:',F10.2,' to ',F10.2,' step :',
+     1         F12.4)
+ 1004 FORMAT('Dataset latitude range:',F10.2,' to ',F10.2,' step :',
      1          F12.4)
- 1004   FORMAT('Dataset latitude range:',F10.2,' to ',F10.2,' step :',
-     1          F12.4)
- 1005   FORMAT('Reading topography data: ',I7,' records from file ',A60)
+ 1005 FORMAT('Reading topography data: ',I7,' records from file ',A60)
+ 1006 FORMAT('Reading GPE data: ',I7,' records from file ',A60)
       REWIND(LDIN)
 C
 C    check enough space allocated to store topodata
@@ -136,41 +137,52 @@ C
         IPT=NCOL*(IPTY-1)+IPTX
         X(IPT)=GRDDAT(1)
         Y(IPT)=GRDDAT(2)
-        ELEV(IPT)=GRDDAT(3)
-        IF (GRDDAT(3).GT.EMAX) EMAX=GRDDAT(3)
-        IF (GRDDAT(3).LT.EMIN) EMIN=GRDDAT(3)
+        ELEV(IPT)=GRDDAT(3)*SCLFAC
+        IF (ELEV(IPT).GT.EMAX) EMAX=ELEV(IPT)
+        IF (ELEV(IPT).LT.EMIN) EMIN=ELEV(IPT)
       END IF
       GO TO 101
 10011 CONTINUE
 C
 C     check if any points have not been set
 C
+        NOTSET=0
         DO J=1,NROW
           DO I=1,NCOL
             K=(J-1)*NCOL+I
             IF((ABS(X(K)).GT. 999.).OR.(ABS(Y(K)).GT.999))THEN
-            WRITE(*,*)'Check TOPODATA: point (I,J) = (',I,',',J,')',
-     1                ' not set'
+              XEXP=GXMIN+DINC*FLOAT(I-1)
+              YEXP=GYMIN+DINC*FLOAT(J-1)
+              IF(NOTSET.LE.20)WRITE(*,10111)I,J,XEXP,YEXP
+10111         FORMAT('TOPO/GPE: point = (',I5,',',I5,') at (X,Y) = (',
+     :           F10.5,',',F10.5,') not set')
+              NOTSET=NOTSET+1
             END IF
           ENDDO
         ENDDO
-        WRITE(LSC,1002) EMIN,EMAX
-        WRITE(LUW,1002) EMIN,EMAX
+        WRITE(LSC,1002) EMIN,EMAX,SCLFAC
+        WRITE(LUW,1002) EMIN,EMAX,SCLFAC
+        IF(NOTSET.GT.0)THEN
+          WRITE(*,*)'Interpolation of TOPO or GPE has failed with ',
+     :              NOTSET,' points of total ',NREC,' not available'
+          STOP
+        ENDIF
 C
 C    proceed to the interpolation
 C
-        CALL TOPOINTRP(X,Y,ELEV,NCOL,NROW,NPTS,
-     :                 EX,EY,SSQ,NOR,NUP,GXMIN,GYMIN,DINC,
-     :           HLENSC,BDEPSC,RISOST,REFLEV,IERR)
+        CALL TOPOINTRP(X,Y,ELEV,NCOL,NROW,NPTS,ITYPE,
+     :                 EX,EY,SSQ,NUP,GXMIN,GYMIN,DINC,
+     :                 HLENSC,BDEPSC,RISOST,REFLEV,IERR)
       CLOSE(LDIN)
       RETURN
- 1002 FORMAT('Dataset elevation range           ',F10.3,' -> ',F10.3)
+ 1002 FORMAT('Data values range from ',F10.3,' to ',F10.3,
+     :       ' after scale factor ',G10.4)
 10125 format(' The read file could not be opened ',a60,/)
       END
 
-      SUBROUTINE TOPOINTRP(X,Y,ELEV,NCOL,NROW,NPTS,
-     :                     EX,EY,SSQ,NOR,NUP,GXMIN,GYMIN,DINC,
-     :         HLENSC,BDEPSC,RISOST,REFLEV,IERROR)
+      SUBROUTINE TOPOINTRP(X,Y,ELEV,NCOL,NROW,NPTS,ITYPE,
+     :                     EX,EY,SSQ,NUP,GXMIN,GYMIN,DINC,
+     :                     HLENSC,BDEPSC,RISOST,REFLEV,IERROR)
 C
 C   this interpolation routine puts the finite element mesh on top
 C   of the topo data grid read in TOPOREAD and makes a bilinear
@@ -186,26 +198,31 @@ C
       DIMENSION EX(NUP)
       DIMENSION EY(NUP)
       DIMENSION SSQ(NUP)
-      DIMENSION NOR(NUP)
       COMMON/AI/LUW,LSC,LBC,LLG
       DIMENSION EVAL(4)
 C
       EPS=1.E-5
-      EMIN=REFLEV
-      EMAX=REFLEV
+C     EMIN=REFLEV
+C     EMAX=REFLEV
       ISTOP=0
       NNOT=0
+      IFIRST=0
       DO 10 I=1,NUP
         SSQQ=REFLEV
-        XPT=EX(NOR(I))
-        YPT=EY(NOR(I))
+        XPT=EX(I)
+        YPT=EY(I)
 C
 C   find offset into arrays
 C
+        GXMAX=GXMIN+DINC*FLOAT(NCOL-1)
+        GYMAX=GYMIN+DINC*FLOAT(NROW-1)
         IXOFF=INT((XPT-GXMIN)/DINC)+1
         IYOFF=INT((YPT-GYMIN)/DINC)+1
         IF(XPT.LT.GXMIN)IXOFF=INT((XPT-GXMIN)/DINC)
         IF(YPT.LT.GYMIN)IYOFF=INT((YPT-GYMIN)/DINC)
+C   next statements deal with points on boundary limits
+        IF((IXOFF.EQ.NCOL).AND.(ABS(XPT-GXMAX).LT.EPS))IXOFF=NCOL-1
+        IF((IYOFF.EQ.NROW).AND.(ABS(YPT-GYMAX).LT.EPS))IYOFF=NROW-1
         IOFF=NCOL*(IYOFF-1)+IXOFF
 C
 C   check that point to be interpolated is within available data grid
@@ -230,8 +247,14 @@ C
 C   do the bilinear interpolation
 C
           SSQQ=BILINEAR(XB0,XB1,YB0,YB1,XPT,YPT,EVAL,REFLEV)
-          IF(SSQQ.GT.EMAX) EMAX=SSQQ
-          IF(SSQQ.LT.EMIN) EMIN=SSQQ
+          IF(IFIRST.EQ.0)THEN
+            EMAX=SSQQ
+            EMIN=SSQQ
+            IFIRST=1
+          ELSE
+            IF(SSQQ.GT.EMAX)EMAX=SSQQ
+            IF(SSQQ.LT.EMIN)EMIN=SSQQ
+          ENDIF
 C
 C   if points are not in the data grid they are set to REFLEV
 C   following message appears as a warning that at least 1 is external
@@ -245,21 +268,35 @@ C
 C
 C     convert topography into dimensionless layer thickness
 C     of which the natural logarithm is stored.
+C     ABS stops a crash in case of rubbish input.
 C
-        SSQR=(1.0+0.001*(SSQQ-REFLEV)*RISOST/BDEPSC)/HLENSC
-        SSQ(I)=ALOG(ABS(SSQR))
-C     ABS is probably an unnecessary precaution, but it stops a
-C     crash in case of rubbish input.
+        IF(ITYPE.EQ.1)THEN
+          SSQR=(1.0+0.001*(SSQQ-REFLEV)*RISOST/BDEPSC)/HLENSC
+          SSQ(I)=ALOG(ABS(SSQR))
+C
+C     for GPE input, read values may need to be scaled by a constant
+C
+        ELSE IF(ITYPE.EQ.2)THEN
+           SSQ(I)=SSQQ
+        ENDIF
   10  CONTINUE
 C
-      WRITE(LSC,1002) EMIN,EMAX
-      WRITE(LUW,1002) EMIN,EMAX
+C     WRITE(*,*)'Summary for SSQ'
+C     CALL SMATPP(SSQ,NUP)
       WRITE(LSC,1003)NNOT
       WRITE(LUW,1003)NNOT
-      WRITE(LSC,10111)REFLEV,RISOST,BDEPSC,HLENSC
-      WRITE(LUW,10111)REFLEV,RISOST,BDEPSC,HLENSC
+      IF(ITYPE.EQ.1)THEN
+        WRITE(LSC,1002)EMIN,EMAX
+        WRITE(LUW,1002)EMIN,EMAX
+        WRITE(LSC,10111)REFLEV,RISOST,BDEPSC,HLENSC
+        WRITE(LUW,10111)REFLEV,RISOST,BDEPSC,HLENSC
+      ELSE IF(ITYPE.EQ.2)THEN
+        WRITE(LSC,1004)EMIN,EMAX
+        WRITE(LUW,1004)EMIN,EMAX
+      ENDIF
       RETURN
  1002 FORMAT('Interpolated elevation data range ',F10.3,' -> ',F10.3)
+ 1004 FORMAT('Interpolated GPE data range ',F10.3,' -> ',F10.3)
  1003 FORMAT('Interpolation: ',I5,' nodes lie outside domain of data')
 10111 FORMAT('Scaling Parameters for Isostatic calculation: ',
      :'REFLEV = ',F12.3,/,'RISOST = ',F12.3,'  BDEPSC = ',F12.3,

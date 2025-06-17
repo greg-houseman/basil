@@ -82,7 +82,8 @@
 #define ITHDI	   55
 #define IPOLE      56
 #define IVRESET    57
-
+#define INFPF3     58
+#define IKPBC      59
 /*
  * define indices into real variable array
  * (control params,physical params ) 

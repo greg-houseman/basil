@@ -40,7 +40,7 @@ void InitPtrs(), FreeArrays();
 int AllocIntArray(int cnt, int **addr, int dflt);
 int AllocFlArray(int cnt, float **addr, float dflt);
 int AllocDblArray(int cnt, double **addr, double dflt);
-int AllocateArrays(int *iv, int nk, int nk2, int nk4);
+int AllocateArrays(int *iv);
 void arraydim_(int *,int *,int *,int *,int *,int *,int *,
        int *,int *,int *,int *,int *,int *,int *,int *);
 void elementvar_(float *,float *,float *);
@@ -69,21 +69,20 @@ void initdimensions_(int *,float *,
 void initremeshdim_(int *, float *, int *,int *,int *,int *,
      int *,int *,int *,int *,int *,int *,int *,int *,int *,int *,
      float *, float *, float *, int *,int *,int *,int *,int *);
-void initstkdim_(int *IntegerVars,int *imshp, int*maxnbs,
-                 int *kbw,int *k2bw,int *k4bw,int *nk,int *nk2,int *nk4);
+void initstkdim_(int *IntegerVars,int *imshp, int*maxnbs);
 void inputexists_(char*, int *, int *);
 void locnod_(float *exts,float *eyts, float *ex,float *ey,
-     int *olem,int *nor, int *leno, float *elad, int *oldne,
+     int *olem, int *leno, float *elad, int *oldne,
      int *oldnup, int *nup, int *nptout);
 void nextfilename_(char *, int *, int *, int *, int*);
 void ntrpltd_(int *iden,float *olddens,float *newdens,float *bgd,
-     int *ivv,float *oldvhb,float *newvhb, float *bgv,
+     int *ivis,float *oldvhb,float *newvhb, float *bgv,
      int *ithdi,float *othdint,float *thdint, float *bgdi,
      float *exts,float *eyts,float *ex,float *ey,
-     int *olem,int *lem,int *nor,int *omat,int *imat,
+     int *olem,int *lem, /* int *nor, */ int *omat,int *imat,
      int *oldne,int *oldnup,int *ne,int *nup,int *imreg);
 void ntrplt_(float *uvpts,float *uvp,float *bgu,
-     int *olem,int *nor, int *leno, float *elad, 
+     int *olem, /* int *nor, */ int *leno, float *elad, 
      int *oldne,int *oldnup, int *nup, int *iq );
 int  readelleinput( char *, char *, int *, int **);
 int  ReallocateSTKArrays(int iflt,int nfp);
@@ -94,9 +93,10 @@ void runbasil_(int *,int *,float *, char*,int *,char *,int *,
        float *,float *,float *,float *,float *,float *,int *,
        float *,float *,int *,float *,float *,int *,int *);
 void setmat_(float *exts,float *eyts,float *ex,float *ey,
-     int *olem,int *lem, int *nor, int *omat,int *mat,
+     int *olem,int *lem, /* int *nor, */ int *omat,int *mat,
      int *oldne,int *oldnup, int *ne,int *nup, int *ierr);
 void stkarraydim_(int *,int *,int *);
+void external_seg_x_(int *iseg,float *ex,float *ey,int *nseg,int *nup,int *err);
 
 int main(int argc, char **argv)
 {
@@ -111,8 +111,9 @@ int main(int argc, char **argv)
     int kbw,k2bw,k4bw,nk,nk2,nk4;
     int nxl,nyl,npmp,nrmp,nsm,ilag,inul,nlag;
     int maxnbs=0,pbxy=0,nbpext=0;
-    float xlen,ylen,pdist;
+    float xlen,ylen,pdist,qex,qey;
     float visdflt=1.0, se=1.0;
+    FILE *outfile;
 
  /* printf("\nBasil version: %s\n",version);  */
 
@@ -223,12 +224,32 @@ int main(int argc, char **argv)
              */
               if (trimesh(&inflt,&nup,&nn,&nmp,&nbp,&nnnof,&nmpnof,
                           &ne,&nfp,&nfpf3,&nseg,&ivis,&maxnbs,&nellep,&ielle,&ipolyn,
-                          &lem,&lemngh,&ibc,&ibngh,&ibctyp,&ifbc1,&ifbc2,&iseg,
+                          &lem,&lemngh,&ibc,&ibngh,&ibctyp,&ifbc1,&ifbc2,&ifeqv,&iseg,
                           &ex,&ey,&vhb,&xlen,&ylen,area,quality,
-                          &visdflt,&se,pbxy,&nbpext,pdist,
+                          &visdflt,&se,pbxy,&nbpext,&verb,pdist,
                           polyfile,polycomments)) exit(1);
 //            printf("after trimesh pbxy = %i nbpext = %i nbp = %i\n",pbxy,nbpext,nbp);
               if (ipolyn!=NULL) ipoly=1;
+
+//    output boundary conditions following remesh, if needed for debugging; should have
+//    same values as in file FLT (written by FLTINIT in fltbcon.f), but FLT also has JFBC1, JFBC2
+      /*      if (verb > 0){
+                 outfile = fopen("FLT1", "w");
+                 fprintf(outfile,"    i   ifbc1  ifbc2  ifeqv      ex       ey\n");
+                 for(i = 0; i < nfp; i++){
+	           if(ifbc1[i] > 0) { 
+		      qex=ex[ifbc1[i]-1]; 
+		      qey=ey[ifbc1[i]-1]; 
+		   }
+		   else { 
+		      qex=ex[-ifbc1[i]-1]; 
+		      qey=ey[-ifbc1[i]-1]; 
+		   }
+                   fprintf(outfile,"%6i %6i %6i %6i %10f %10f\n",i,ifbc1[i],ifbc2[i],ifeqv[i],qex,qey);
+                 }
+                 fclose(outfile);
+              }   */
+
             } /* mesh==3 */
             else if (strlen(polyfile)>0) {
               readelleinput(polyfile,polycomments,&nellep,&ielle);
@@ -250,23 +271,21 @@ int main(int argc, char **argv)
     //                      &kbw,&k2bw,&k4bw,&nk,&nk2,&nk4);
           } /* !iread */
           else {
-            initstkdim_(IntegerVars,&imshp,&maxnbs,&kbw,&k2bw,&k4bw,
-                                                   &nk, &nk2, &nk4);
+            initstkdim_(IntegerVars,&imshp,&maxnbs);
           }
       /*
        * allocate memory required to run the basil program
        */
-          if (AllocateArrays(IntegerVars,nk,nk2,nk4)!=0) {
+          if (AllocateArrays(IntegerVars)!=0) {
             err=1;
             fprintf(stderr,"Malloc failed for input file %d\n",infile);
           }
           else {
             int dum=0;
-/*    fprintf(stderr,"about to call runbasil nbp = %i\n",nbp);   */
             arraydim_(IntegerVars,&nup,&nbp,&ne,&nn,&dum,&nseg,&nfp,&nfpf3,
                          &ny,&inul,&dum,&dum,&nrmp,&npmp);
 
-//      printf("before runbasil: nfp = %i nfpf3 = %i inflt = %i\n",nfp,nfpf3,inflt);
+//      printf("before runbasil: nbp = %i nfp = %i nfpf3 = %i inflt = %i\n",nbp,nfp,nfpf3,inflt);
             runbasil_(&err,IntegerVars,RealVars,namebc,&nmlen,namew,&lnwf,
                       namer,&lnr,bindir,&lnbd,outdir,&lnod,namedb,&lndb,
                       ielfix,iendp1,iendp2,lgem,lgibc,lgibcf,
@@ -380,11 +399,11 @@ void c_data_to_f_(int *cxref, int *cyref, int *cxtsref, int *cytsref,
 * this routine accesses the global pointers
 * and global vars area, quality
 */
-void remesh_data_(int *ibp, int * newiseg, int *newpts, 
-                  int *newnseg, int *err)
+void remesh_data_(int *ibp, int *newiseg, int *ibptyp, float *rbnd,
+		  int *newpts, int *newnseg, int *ibpsize, int *verb, int *err)
 {
     int i, j;
-    int nx,ny,imshp,inflt,ivv,iden,itemp,icr,igrav,ivold,imreg;
+    int nx,ny,imshp,inflt,ivis,iden,itemp,icr,igrav,ivold,imreg;
     int nrows,nul,nbl,nel,npm;
     int maxnbs,nptout;
     int nup,nn,nbp,nmp,ne,nnnof,nmpnof,nfp=0,nfpf3=0,pbxy;
@@ -399,9 +418,8 @@ void remesh_data_(int *ibp, int * newiseg, int *newpts,
     float area,quality;
     float visdflt=1.0, se=1.0;
 
-    int indxibc[*newpts];
-//  int num_pt_attr=8;
-    int num_pt_attr=4;
+//  int indxibc[*newpts];
+    int k,num_pt_attr=4;
     float pt_attributes[num_pt_attr * (*newpts)];
     /*
     * get the flag values and array dimensions from IntegerVars
@@ -409,18 +427,26 @@ void remesh_data_(int *ibp, int * newiseg, int *newpts,
     * the indices definitions for the arrays of scalars)
     * the arrays ex, ey, ibc, lem are defined by global pointers in main
     */
+   // beware of confusion between ivis returned here and ivv 
     flags_(IntegerVars,&ilag,&inflt,&imshp,&igrav,&icr,&itemp,&iden,
-          &ivv,&ivold,&imreg,&ithdi,&ncomp,&nfpf3,&pbxy);
+          &ivis,&ivold,&imreg,&ithdi,&ncomp,&nfpf3,&pbxy);
     arraydim_(IntegerVars,&nup,&nbp,&ne,&nn,&nrows,&nseg,&nfp,&nfpf3,
               &ny,&nul,&nbl,&nel,&nsm,&npm);
     elementvar_(RealVars,&area,&quality);
-    
-   // ibp provides the set of node numbers used in the remeshing.
-   // newpts is the number of vertex nodes, newnseg is the number of segments
-   // used in the definition of boundary and internal structures passed
-   // to triangle to define the new mesh.
 
-    int count=0;
+/*
+        if (external_seg_X(newiseg,ex,ey,newnseg,nn,nbp,nup)!=0) {
+          printf("Crossing found in external boundary segments\n");
+          *err = 1;
+          if(*err)return;
+        }
+*/
+
+//   the set of nodes used for the mesh generation is in ibp, dimension *newpts
+//   the segments are defined in newiseg, dimension *newnseg, the number of segments
+//   printf("remesh_data: *newpts = %i *newnseg = %i\n",*newpts,*newnseg);
+
+/*  int count=0;    no longer used.
     for (i=0;i<*newnseg;i++) {
         indxibc[i]=-1;
         for (j=0;j<nbp && indxibc[i]==-1;j++) {
@@ -429,15 +455,10 @@ void remesh_data_(int *ibp, int * newiseg, int *newpts,
                 count++;
             }
         }
-    }
-//  printf("remesh_data: *newpts = %i count = %i *newnseg = %i\n",*newpts,count,*newnseg);
-    /*
-     * tri_remesh will free the old arrays and allocate new
-     * Save the old LEM array for ntrplt
-     * Save the old SSQ and FROT arrays for ntrplt
-     * Save the old DENS and/or VHB arrays for ntrpltd, if necessary
-     * Save the old IMAT for setmat, if necessary
-     */
+    }  */
+//  copy the following arrays: lem, dens, thdint, vhb, imat for use in 
+//  interpolating the old solution onto the new mesh. The old arrays
+//  will be freed and re-allocated in tri_remesh
     olem=0;
     omat=0;
     odens=0;
@@ -453,7 +474,7 @@ void remesh_data_(int *ibp, int * newiseg, int *newpts,
       if ((*err=AllocFlArray(7*ne,&othdint,0))!=0) return;
       for (i=0;i<ne*7;i++) othdint[i] = thdint[i];
     }
-    if (ivv>0) {    /// should use ivis ??
+    if (ivis>0) {
       if ((*err=AllocFlArray(8*ne,&ovhb,0))!=0) return;
       for (i=0;i<ne*8;i++) ovhb[i] = vhb[i];
     }
@@ -464,41 +485,29 @@ void remesh_data_(int *ibp, int * newiseg, int *newpts,
     oldne = ne;
     oldnn = nn;
     oldnup = nup;
- // nbpext is the number of vertex points on the external boundary
- // npbpt  is the number of nodes on periodic boundaries (used to size flt arrays)
+//  printf("before tri_remesh: nbp = %i nfp = %i nfpf3 = %i\n",nbp,nfp,nfpf3);
+// npbpt  is the number of nodes on periodic boundaries (used to size flt arrays)
     npbpt = nfp-nfpf3;
-    /*
-     * Pass through qbnd and ibctyp as pt attributes
-     */
+
+//  Pass qbnd and ibctyp as pt attributes through the mesh regeneration process
     for (i=0;i<*newpts;i++) {
         exbnd[i] = ex[ibp[i]-1];
         eybnd[i] = ey[ibp[i]-1];
-        if (indxibc[i]==-1) {
-            pt_attributes[i*num_pt_attr]=0;
-            pt_attributes[i*num_pt_attr+1]=0;
-            pt_attributes[i*num_pt_attr+2]=0;
-            pt_attributes[i*num_pt_attr+3]=0;
-  //        pt_attributes[i*num_pt_attr+4]=0;
-  //        pt_attributes[i*num_pt_attr+4]=0;
-  //        pt_attributes[i*num_pt_attr+5]=0;
-  //        pt_attributes[i*num_pt_attr+6]=0;
-  //        pt_attributes[i*num_pt_attr+7]=0;
+        pt_attributes[i*num_pt_attr]=rbnd[i];
+        pt_attributes[i*num_pt_attr+1]=rbnd[i+*ibpsize];
+        pt_attributes[i*num_pt_attr+2]=ibptyp[i];
+        pt_attributes[i*num_pt_attr+3]=ibptyp[i+*ibpsize];
+        // in case num_pt_attr is > 4
+        for (k=4;k<num_pt_attr;k++) {
+            pt_attributes[i*num_pt_attr+k]=0;
         }
-        else {
-            pt_attributes[i*num_pt_attr]=qbnd[indxibc[i]];
-            pt_attributes[i*num_pt_attr+1]=qbnd[indxibc[i]+nbp];
-            pt_attributes[i*num_pt_attr+2]=ibctyp[indxibc[i]];
-            pt_attributes[i*num_pt_attr+3]=ibctyp[indxibc[i]+nbp];
-  //        pt_attributes[i*num_pt_attr+4]=1;
-  //        pt_attributes[i*num_pt_attr+4]=ibpole[indxibc[i]];
-  //        pt_attributes[i*num_pt_attr+5]=ibpole[indxibc[i]+nbp];
-  //        pt_attributes[i*num_pt_attr+6]=taperf[indxibc[i]];
-  //        pt_attributes[i*num_pt_attr+7]=1;
-        }
+//      printf("i = %i ibp = %i ex = %f ey = %f rbnd =  %f %f ibptyp = %i %i\n",
+//           i,ibp[i],exbnd[i],eybnd[i],rbnd[i],rbnd[i+*ibpsize],ibptyp[i],ibptyp[i+*ibpsize]);
     }
- // printf("before tri_remesh: count=%i *newpts=%i nbp = %i nfp = %i nfpf3 = %i\n",count,*newpts,nbp,nfp,nfpf3);
+
+// tri_remesh is expecting ivv rather than ivis, but at present everything that uses it is commented out
     *err =  tri_remesh( &inflt,&nup,&nn,&nmp,&nbp,&nnnof,&nmpnof,
-                        &ne,&nfp,&nfpf3,&nseg,&ivv,&maxnbs,
+                        &ne,&nfp,&nfpf3,&nseg,&ivis,&maxnbs,
                         &nellep,&ielle,&ipolyn,
                         &lem,&lemngh,
                         &ibc,&ibngh,&ibctyp,&ifbc1,&ifbc2,&ifeqv,&jfbc1,&jfbc2,&iseg,
@@ -507,98 +516,92 @@ void remesh_data_(int *ibp, int * newiseg, int *newpts,
                         &ex,&ey,&vhb,&qbnd,
                         exbnd, eybnd, pt_attributes,
                         &xlen, &ylen,
-                        area,quality,&visdflt,&se,pbxy,&nbpext,npbpt
+                        area,quality,&visdflt,&se,pbxy,&nbpext,npbpt,verb
                         );
-
- // printf("after tri_remesh: nbp = %i nfp = %i nfpf3 = %i\n",nbp,nfp,nfpf3);
+// nbpext is the number of vertex points on the external boundary
+//  printf("After Remesh: NBP = %i NFP = %i of which NFPF3 = %i\n",nbp,nfp,nfpf3);
     imshp=3;
-    if (*err==0) {
-        initremeshdim_(IntegerVars,RealVars,
+    if (*err!=0) return;
+    initremeshdim_(IntegerVars,RealVars,
                         &nup,&nn,&nmp,&nbp,&ne,&nfp,&nfpf3,&nseg,
                         &nx,&ny,&imshp,&inflt,&maxnbs,&nellep,
                         &xlen,&ylen,ey,
                         &nxl,&nyl,&npmp,&nrmp,&nsm
                         );
-        arraydim_(IntegerVars,&nup,&nbp,&ne,&nn,&nrows,&nseg,&nfp,&nfpf3,
+    arraydim_(IntegerVars,&nup,&nbp,&ne,&nn,&nrows,&nseg,&nfp,&nfpf3,
                   &ny,&nul,&nbl,&nel,&nsm,&npm);
 
 //   set the region identifiers before interpolating fields
 
-        if (imreg>0) {
-          if (imat!=0){ free(imat); imat=0; }
-          if ((*err=AllocIntArray(ne,&imat,0))!=0){
-            printf("Problem allocating IMAT array after remesh\n");
-            return; 
-          }
-          setmat_(exts,eyts,ex,ey,olem,lem,nor,
-                  omat,imat,&oldne,&oldnup,&ne,&nup,err);
-	  if(*err)return;
-        }
+//      if (imreg>0) {
+// imat is re-initialized in tri_remesh
+//        if (imat!=0){ free(imat); imat=0; }
+//        if ((*err=AllocIntArray(ne,&imat,0))!=0){
+//          printf("Problem allocating IMAT array after remesh\n");
+//          return; 
+//        }
+//        setmat_(exts,eyts,ex,ey,olem,lem, /* nor, */
+//                omat,imat,&oldne,&oldnup,&ne,&nup,err);
+//        if(*err)return;
+//      }
 
-      /*   interpolate quantities defined on element nodes -
-           first locate new nodes in old mesh     */
-
+// locate new nodes in old mesh prior to interpolation of values on nodes
         if (leno!=0) {free(leno); leno=0;}
         if ((*err=AllocIntArray(nup,&leno,0))!=0) return;
         if (elad!=0) {free(elad); elad=0;}
         if ((*err=AllocFlArray(3*nup,&elad,0.0))!=0) return;
-        locnod_(exts,eyts,ex,ey,olem,nor,leno,elad,&oldne,&oldnup,&nup,&nptout);
-   
-      /*   successively interpolate U, V, P (all in UVP)  */
-
+        locnod_(exts,eyts,ex,ey,olem,leno,elad,&oldne,&oldnup,&nup,&nptout);
 	printf("A new mesh has been generated: old NE=%i new NE=%i, points outside mesh=%i\n",
                 oldne,ne,nptout);
-        printf("Interpolating arrays: ncomp=%i icr=%i ivv=%i iden=%i ithdi=%i\n",
-                                      ncomp,icr,ivv,iden,ithdi);
+        printf("Interpolating arrays: ncomp=%i icr=%i ivis=%i iden=%i ithdi=%i\n",
+                                      ncomp,icr,ivis,iden,ithdi);
+
+// interpolate u,v,p to provide initial solution
         if (uvp!=0) {free(uvp); uvp=0;}
         if ((*err=AllocFlArray(nrows,&uvp,0.0))!=0) return;
         bgu=0.; iq=2;
-        ntrplt_(uvpts,uvp,&bgu,olem,nor,leno,elad,&oldne,&oldnup,&nup,&iq);
-        ntrplt_(uvpts+oldnup,uvp+nup,&bgu,olem,nor,leno,elad,&oldne,
+        ntrplt_(uvpts,uvp,&bgu,olem, /* nor, */ leno,elad,&oldne,&oldnup,&nup,&iq);
+        ntrplt_(uvpts+oldnup,uvp+nup,&bgu,olem, /* nor, */ leno,elad,&oldne,
                 &oldnup,&nup,&iq);
         if(ncomp>0){
           iq=1;
-          ntrplt_(uvpts+2*oldnup,uvp+2*nup,&bgu,olem,nor,leno,elad,&oldne,
+          ntrplt_(uvpts+2*oldnup,uvp+2*nup,&bgu,olem, /* nor, */ leno,elad,&oldne,
                   &oldnn,&nn,&iq);
           iq=2;
         }
+//	printf("uvpts after ntrplt:\n");
+//	smatpp_(uvpts,&nup);
 
-      /*   and, as required interpolate SSQ and FROT, SSQTS and FROTS
-           also re-set here for use in 2-step time loop   */
-
+// as required interpolate SSQ and FROT, SSQTS and FROTS
         if(icr>0 ){
           if(icr<3) {
             if (ssq!=0) {free(ssq); ssq=0;}
             if ((*err=AllocFlArray(nup,&ssq,0.0))!=0) return;
-            ntrplt_(ssqts,ssq,&bgu,olem,nor,leno,elad,&oldne,&oldnup,&nup,&iq);
+            ntrplt_(ssqts,ssq,&bgu,olem, /* nor, */ leno,elad,&oldne,&oldnup,&nup,&iq);
             if (ssqts!=0) {free(ssqts); ssqts=0;}
             if ((*err=AllocFlArray(nup,&ssqts,0.0))!=0) return;
             for (i=0;i<nup;i++) ssqts[i]=ssq[i];
-            printf("interpolated SSQ ok (?)\n");
+//          printf("interpolated SSQ ok (?)\n");
           }
           if(icr!=2) {
             if (frot!=0) {free(frot); frot=0;}
-            if (frotts!=0) {free(frotts); frotts=0;}
             if ((*err=AllocFlArray(nup,&frot,0.0))!=0) return;
+            ntrplt_(frotts,frot,&bgu,olem, /* nor, */ leno,elad,&oldne,&oldnup,&nup,&iq);
+            if (frotts!=0) {free(frotts); frotts=0;}
             if ((*err=AllocFlArray(nup,&frotts,0.0))!=0) return;
-            ntrplt_(frotts,frot,&bgu,olem,nor,leno,elad,&oldne,&oldnup,&nup,&iq);
-            printf("interpolated FROT ok (?)\n");
+            for (i=0;i<nup;i++) frotts[i]=frot[i];
+//          printf("interpolated FROT ok (?)\n");
           }
         }
-/*      ntrplt_(uvpts,uvp,&bgu,ossq,ssq,&bgs,ofro,frot,&bgf,
-                exts,eyts,ex,ey,olem,nor,
-                &oldne,&oldnup,&oldnfp,&oldnn,&oldnrows,
-                &nup,&nfp,&nn,&nrows,&inflt,&ncomp,&icr);  */
 
-/*   interpolate quantities defined on interpolation points (DENS,VHB)
-     suggested values for bgd, bgv, outside range of expected values */
-
+//   interpolate quantities defined on interpolation points (DENS,VHB)
+//   suggested values for bgd, bgv, outside range of expected values
         if (iden>0) {
           if (dens!=0) {free(dens); dens=0;}
           if ((*err=AllocFlArray(ne*7,&dens,0.0))!=0) return;
           bgd=1.;
         }
-        if (ivv>0) {
+        if (ivis>0) {
           if (vhb!=0) {free(vhb); vhb=0;}
           if ((*err=AllocFlArray(ne*8,&vhb,0.0))!=0) return;
           bgv=-10;
@@ -610,22 +613,23 @@ void remesh_data_(int *ibp, int * newiseg, int *newpts,
           if ((*err=AllocFlArray(ne*7,&thdiss,0.0))!=0) return;
           bgdi=0;
         }
-        ntrpltd_(&iden,odens,dens,&bgd,&ivv,ovhb,vhb,&bgv,
+// ntrpltd refers to IVV, but it probably should use ivis, which is passed here
+        ntrpltd_(&iden,odens,dens,&bgd,&ivis,ovhb,vhb,&bgv,
                  &ithdi,othdint,thdint,&bgdi,
-                 exts,eyts,ex,ey,olem,lem,nor,omat,imat,
+                 exts,eyts,ex,ey,olem,lem, /* nor, */ omat,imat,
                  &oldne,&oldnup,&ne,&nup,&imreg);
         
-      /*   free up old arrays used in re-interpolation */
-
+//   free up old arrays used in re-interpolation
         if (odens!=0) {free(odens); odens=0;}
         if (othdint!=0) {free(othdint); othdint=0;}
         if (ovhb!=0) {free(ovhb); ovhb=0;}
         if (omat!=0) {free(omat); omat=0;}
         if (olem!=0) {free(olem); olem=0;}
+        if (leno!=0) {free(leno); leno=0;}
+        if (elad!=0) {free(elad); elad=0;}
+
+// reallocate and re-initialize new arrays whose size is changed
         if (nor!=0) {free(nor); nor=0;}
-
-      /* reallocate and re-initialize new arrays whose size is changed */
-
         if ((*err=AllocIntArray(nup,&nor,0))!=0) return;
         for (i=0;i<nup;i++) nor[i]=i+1;
         if (exts!=0) {free(exts); exts=0;}
@@ -641,23 +645,19 @@ void remesh_data_(int *ibp, int * newiseg, int *newpts,
         if ((*err=AllocFlArray(nrows,&qload,0.0))!=0) return;
         if (vold!=0) {free(vold); vold=0;}
         if ((*err=AllocFlArray(ne*8,&vold,0.0))!=0) return;
-
         if ((*err= ReallocateSTKArrays(inflt,nfp))!=0) return;
-        
-    }
-    else return;
-
-}  // end routine remesh_data_
+}                // end routine remesh_data_
 
 // the following routine accesses the global pointers
 
-int AllocateArrays(int *iv, int NK, int NK2, int NK4)
+int AllocateArrays(int *iv)
 {
     int err=0;
     int ILAG,IFLT,IMSH,ITHDI,NCOMP,NFPF3;
     int IGRAV,ICR,ITEMP,IDEN,IVIS,IVOLD,IMREG;
     int NUP,NBP,NE,NN,NROWS,NFP,NY;
     int NUL,NBL,NEL,NSM,NPM,KPBC;
+    int NK, NK2, NK4;
     int NSEG;
 
     /*
@@ -774,7 +774,7 @@ int ReallocateSTKArrays(int IFLT,int NFP)
      * the indices definitions for the arrays of scalars)
      */
     stkarraydim_(&NK,&NK2,&NK4);
-//  printf("ReallocateSTKArrays: NK,NK2,NK4,NFP =%i %i %i %i\n",NK,NK2,NK4,NFP);
+//  printf("ReallocateSTKArrays: NK,NK2,NK4,NFP,IFLT=%i %i %i %i %i\n",NK,NK2,NK4,NFP,IFLT);
     if (ik!=0) {free(ik); ik=0;}
     if (ik2!=0) {free(ik2); ik2=0;}
     if (ik4!=0) {free(ik4); ik4=0;}
@@ -1026,5 +1026,44 @@ int find_maxnbs(float *ex,float *ey,int *lem,int ne,int nn)
       }
     }
     return(max);
+}
+
+void external_seg_x_(int *iseg,float *ex,float *ey,int *nseg,int *nup,int *err) {
+    int node, nb;
+    int i,j,k;
+    int extMIN=0, extMAX=0;
+    int found=0;
+    double x1,y1,x2,y2,x3,y3,x4,y4,x,y;
+    int loc_err=0;
+   
+    void bndextlimits_(int *,int *);
+
+    bndextlimits_(&extMIN,&extMAX);
+    j=0;
+    for (i=0; i<*nseg && !loc_err; i++) {
+      node = iseg[3*i];
+      nb = iseg[3*i+1];
+      if (iseg[3*i+2]>=extMIN && iseg[3*i+2]<=extMAX) {
+        x1 = (double)ex[node-1];
+        y1 = (double)ey[node-1];
+        x2 = (double)ex[nb-1];
+        y2 = (double)ey[nb-1];
+        for (j=0; j<*nseg && !loc_err; j++) {
+          if (j!=i && iseg[3*j+2]>=extMIN && iseg[3*j+2]<=extMAX) {
+            if ((iseg[3*j]!=node && iseg[3*j+1]!=node)
+               &&  (iseg[3*j]!=nb && iseg[3*j+1]!=nb)) {
+              x3 = (double)ex[iseg[3*j]-1];
+              y3 = (double)ey[iseg[3*j]-1];
+              x4 = (double)ex[iseg[3*j+1]-1];
+              y4 = (double)ey[iseg[3*j+1]-1];
+              loc_err = lines_intersect(x1,y1,x2,y2,x3,y3,x4,y4,&x,&y);
+              if (loc_err==2) loc_err=0;
+            }
+          }
+        }
+      }
+    }
+    *err=loc_err;
+    return;
 }
 

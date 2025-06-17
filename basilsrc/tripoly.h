@@ -44,6 +44,7 @@ void initio(struct triangulateio *io);
 void cleanio(struct triangulateio *io);
 int dump_comments(FILE *fp);
 int WritePoly(struct triangulateio *out,char *name);
+int WriteBndPoly(struct triangulateio *out,char *name);
 #ifdef __cplusplus
 }
 #endif

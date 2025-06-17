@@ -153,7 +153,7 @@ C
       DO 100 I=1,NL
         IF (ILINE(I).NE.0) ICNT = ICNT+1
  100  CONTINUE
-      IF (ICNT.EQ.0) WRITE(6,10001)ICNT
+      IF (ICNT.EQ.0)WRITE(6,10001)
 10001 FORMAT('Warning from NTRPLN: no interpolation points',
      :' lie within the solution domain')
       RETURN

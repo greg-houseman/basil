@@ -111,38 +111,38 @@ C     Draw each element in sequence, and write the element
 C     number inside
 C
       YMID2=YMIN+YMAX
-      IF(IBND.GT.0) THEN
-        IF(IVERBOSE.NE.0)WRITE(6,*)'external boundary data follow:'
 C
 C boundary plot only
 C
-        KB=1
+      IF(IBND.GT.0) THEN
+        IF(IVERBOSE.NE.0)WRITE(6,*)'boundary segments follow:'
         DO 10 I=1,NE
-          DO 20 K1=1,3
+          DO 20 K=1,3
+            K1=K
             K5=MOD(K1,3)+4
             K2=MOD(K1,3)+1
+            K3=MOD(K1+1,3)+1
             IYES=0
             LM=LEM(K5,I)
+            LK1=LEM(K1,I)
+            LK2=LEM(K2,I)
+            XK1=EX(LK1)
+            YK1=EY(LK1)
+            XK2=EX(LK2)
+            YK2=EY(LK2)
 C
 C check if LM is on boundary
 C
-            DO 30 KK=KB,NBP
+            DO 30 KK=1,NBP
               LBC=IBC(KK)
               IF(LM.EQ.LBC) THEN
                 IYES=1
-                IF(IBND.EQ.2) THEN
 C
-C check if LM is on fault only if IBND=2
+C If IBND=2, fault boundaries are not plotted
 C
-                     IF(IBCTYP(KK).EQ.11
-     1                            .OR.IBCTYP(KK).EQ.12) THEN
+                IF((IBND.EQ.2).AND.((IBCTYP(KK).EQ.11).OR.
+     :                (IBCTYP(KK).EQ.21)))IYES=0
 C
-C LM is on unlocked part of fault (don't plot locked portion if IBND=2
-C
-                       IYES=0
-                   END IF
-                END IF
-
 C  only plot if IYES=1
 C
                 IF(IYES.EQ.1) THEN
@@ -165,7 +165,7 @@ C
                         CALL PROJECTDEG(X1,Y1,XMID,YMID,1,NCOMP,IERROR)
                         CALL PROJECTDEG(X2,Y2,XMID,YMID,1,NCOMP,IERROR)
                       ENDIF
-                      WRITE(6,10003)KK,X1,Y1,X2,Y2
+                      WRITE(6,10003)I,KK,X1,Y1,X2,Y2
                     ENDIF
                   END IF
                   IF(ITWO.EQ.1) THEN
@@ -179,25 +179,14 @@ C    doesn't check if segment inside cell
    30       CONTINUE
    20     CONTINUE
    10   CONTINUE
-10003   FORMAT(I6,2F13.5,3X,2F13.5)
-C
-C    output a list of boundary node numbers
-C
-C       IF(IVERBOSE.NE.0)THEN
-C         WRITE(6,*)'boundary vertex node numbers and coordinates',
-C    1              ' follow'
-C         DO 15 J=1,NBP
-C           NODNO=NOR(IBC(J))
-C           IF(NODNO.LE.NN)WRITE(6,*)NODNO,EX(NODNO),EY(NODNO)
-C  15     CONTINUE
-C       END IF
-      ELSE
+10003   FORMAT(2I6,2F13.5,3X,2F13.5)
 C
 C If IBND = 0, this is not a boundary plot only
 C
-      IF(IVERBOSE.NE.0)WRITE(6,*)'triangle node allocation follows'
-      DO 100 I=1,NE
-        KS=3
+      ELSE
+        IF(IVERBOSE.NE.0)WRITE(6,*)'triangle node allocation follows'
+        DO 100 I=1,NE
+          KS=3
 C
 C     Define vertex to commence drawing
 C
@@ -502,14 +491,14 @@ C
       IF(IVERBOSE.NE.0)WRITE(6,*)'internal segments follow:'
       DO 10 I=1,NSEG
         IF (ISEG(3,I).GT.1000 .AND. ISEG(3,I).LE.3000) THEN
-          M=NOR(ISEG(1,I))
-          X1=EX(M)
-          Y1=EY(M)
+          M1=NOR(ISEG(1,I))
+          X1=EX(M1)
+          Y1=EY(M1)
           IF(X1.GE.XMINC.AND.X1.LE.XMAXC.AND.
      :          Y1.GE.YMINC.AND.Y1.LE.YMAXC) THEN
-            M=NOR(ISEG(2,I))
-            X2=EX(M)
-            Y2=EY(M)
+            M2=NOR(ISEG(2,I))
+            X2=EX(M2)
+            Y2=EY(M2)
             CALL PLOTU(X1,Y1,PENUP)
             CALL PLOTU(X2,Y2,PENDN)
 C
@@ -520,24 +509,15 @@ C
                 CALL PROJECTDEG(X1,Y1,XMID,YMID,1,NCOMP,IERROR)
                 CALL PROJECTDEG(X2,Y2,XMID,YMID,1,NCOMP,IERROR)
               ENDIF
-              WRITE(6,10003)I,X1,Y1,X2,Y2
+              WRITE(6,10003)M1,M2,X1,Y1,X2,Y2
             ENDIF
           ENDIF
         ENDIF
  10   CONTINUE
-10003 FORMAT(I6,2F13.5,3X,2F13.5)
-C
-C    output segment array to stdout
-C
-C       IF(IVERBOSE.NE.0)THEN
-C         WRITE(6,*)'segment data follows'
-C         DO 300 J=1,NSEG
-C           WRITE(6,10002)J,(ISEG(I,J),I=1,3)
-C 300     CONTINUE
-C       END IF
-C10002   FORMAT(4I6)
+10003 FORMAT(2I6,2F13.5,3X,2F13.5)
       RETURN
       END
+C
       SUBROUTINE STMARK(STELPX,STELPY,NSM,NPM,NRM,R0,IVERBOSE,
      :                   XMINC,XMAXC,YMINC,YMAXC)
       DIMENSION STELPX(NPM,NSM),STELPY(NPM,NSM)

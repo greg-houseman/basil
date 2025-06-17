@@ -5,7 +5,7 @@ C*    Copyright (c) 1997 by G.A. Houseman, T.D. Barr, & L.A. Evans
 C*    See README file for copying and redistribution conditions.
 C*--------------------------------------------------------------------
 C
-      SUBROUTINE PERIBC(EX,EY,QBND,LEM,NOR,IBC,IBNGH,IBCTYP,
+      SUBROUTINE PERIBC(EX,EY,QBND,LEM,IBC,IBNGH,IBCTYP,
      :                 IFBC1,IFBC2,IFEQV,JFBC1,JFBC2,
      :                 IFLT,NUP,NE,NBP,NFP,NFPF3,KPBC,
      :                 PDIST,IREM,LUW,LSC,IERR)
@@ -20,7 +20,6 @@ C
       DIMENSION EX(NUP)
       DIMENSION EY(NUP)
       DIMENSION LEM(6,NE)
-      DIMENSION NOR(NUP)
       DIMENSION QBND(NBP*2)
       DIMENSION IBC(NBP),IBNGH(NBP*2),IBCTYP(NBP*2)  ! IBNGH not set here; needed ?
       DIMENSION IFBC1(NFP),IFBC2(NFP),IFEQV(NFP)
@@ -66,14 +65,10 @@ C               WRITE(*,*)'Found node II, IPRES==',II,IPRES
               ENDIF
             ENDDO
           ENDIF
-C  10     PA1=EX(NOR(II))
-C         PB1=EY(NOR(II))
    10     PA1=EX(II)
           PB1=EY(II)
           DO J=1,NBP
             JJ=IBC(J)
-C           PA2=EX(NOR(JJ))
-C           PB2=EY(NOR(JJ))
             PA2=EX(JJ)
             PB2=EY(JJ)
             IF((ABS(PA2-PA1-PDIST).LT.EPS).AND.
@@ -103,14 +98,10 @@ C               WRITE(*,*)'Found node II, IPRES==',II,IPRES
               ENDIF
             ENDDO
           ENDIF
-C  20     PA1=EY(NOR(II))
-C         PB1=EX(NOR(II))
    20     PA1=EY(II)
           PB1=EX(II)
           DO J=1,NBP
             JJ=IBC(J)
-C           PA2=EY(NOR(JJ))
-C           PB2=EX(NOR(JJ))
             PA2=EY(JJ)
             PB2=EX(JJ)
             IF((ABS(PA2-PA1-PDIST).LT.EPS).AND.
@@ -157,6 +148,7 @@ C    Finally, set IBCTYP = 11 as used for a locked fault (not applied
 C    for remesh, where IBCTYP is picked up from retained point attributes)
 C
       IF(IREM.EQ.0)THEN
+        WRITE(*,*)'Setting IBCTYP values in FLTINIT'
         DO K=NFPF3+1,NFP
           NIBC=IFBC2(K)
           IBCTYP(NIBC)=11
@@ -172,14 +164,14 @@ C
      :'ted, lambda = ',F8.4,' with ',I5,' nodes.')
       END
 C
-      SUBROUTINE PBWIDTH(EX,EY,IFBC1,IFEQV,NOR,NUP,NFP,NFPF3,KPBC,PDIST)
+      SUBROUTINE PBWIDTH(EX,EY,IFBC1,IFEQV,
+     :                   NUP,NFP,NFPF3,KPBC,PDIST)
 C
 C   This routine called only if remeshing required on a problem with
 C   periodic boundaries.  The current periodicity is obtained prior
 C   to remeshing
 C
       DIMENSION EX(NUP),EY(NUP)
-      DIMENSION NOR(NUP)
       DIMENSION IFBC1(NFP),IFEQV(NFP)
 C
       PDSUM=0.0
@@ -197,9 +189,9 @@ C
       RETURN
       END
 C
-      SUBROUTINE FLTINIT(EX,EY,LEM,NOR,IBC,IFBC1,IFBC2,IFEQV,
-     :                   JFBC1,JFBC2,NUP,NE,NFP,NFPF3,NBP,
-     :                   NSEG,LUW,LSC,IERR)
+      SUBROUTINE FLTINIT(EX,EY,LEM,IBC,IBCTYP,IFBC1,IFBC2,
+     :                   IFEQV,JFBC1,JFBC2,NUP,NE,NFP,NFPF3,NBP,
+     :                   NSEG,IDEFTYP,IVERB,LUW,LSC,IERR)
 C
 C   this routine is called by the MESH command if IMSH=3 and IFLT > 0 to 
 C   establish arrays that are used by SEMFLT to set continuity conditions 
@@ -225,18 +217,20 @@ C
       DIMENSION EX(NUP)
       DIMENSION EY(NUP)
       DIMENSION LEM(6,NE)
-      DIMENSION NOR(NUP),NTMP(NUP)
-      DIMENSION IBC(NBP)
+      DIMENSION NTMP(NUP)
+      DIMENSION IBC(NBP),IBCTYP(NBP*2)
       DIMENSION IFBC1(NFP),IFBC2(NFP),IFEQV(NFP)
       DIMENSION JFBC1(NFP),JFBC2(NFP)
       EPS=1.E-6
 C
-C     WRITE(*,*)'FLTINIT: NFP = ',NFP,' NFPF3 =',NFPF3
+C   the arrays IFBC1, IFBC2, and IFEQV are established in the routine
+C   createafault, called by trimesh and in trimesh.c.  There is no longer 
+C   any need for the first part of this routine that sets IFEQV, but
+C   the code is left in place as a possible check that these arrays are ok
 C
-C   the arrays IFBC1 and IFBC2 have been established by trimesh if
-C   this routine is called. To associate pairs we search the IBC 
-C   array for values that have the same location
-C
+      ISET=0
+      IF(ISET.NE.0)THEN
+      WRITE(*,*)'FLTINIT: NFP = ',NFP,' NFPF3 =',NFPF3
       DO I=1,NFPF3
         N1=IFBC1(I)
         EX1=EX(IABS(N1))
@@ -257,6 +251,7 @@ C             WRITE(*,*)'Fault node pairs are I,J,N1,N2 = ',I,J,N1,N2
           ENDIF
         ENDDO
       ENDDO
+      ENDIF
 C
 C   to associate element numbers and fault midpoints, a fault midpoint
 C   can be found in only one element
@@ -270,7 +265,8 @@ C
         DO JM=4,6
           JMPN=LEM(JM,JEL)
           DO K=1,NFP
-            IF(ABS(IFBC1(K)).EQ.JMPN)THEN
+C           IF(ABS(IFBC1(K)).EQ.JMPN)THEN
+            IF(IFBC1(K).EQ.JMPN)THEN
               JFBC1(K)=JEL
               JFBC2(K)=JM
               IFOUND=IFOUND+1
@@ -279,12 +275,42 @@ C
         ENDDO
       ENDDO
       WRITE(*,100)IFOUND,NSEG
-  100 FORMAT('Fault segments: ',I5,' Total labelled segments: ',I5,
-     ://,'*********************************************************',
+  100 FORMAT('Fault segments (pairs): ',I5,' Total labelled segments: ',
+     : I5,//,'*********************************************************',
      :  '*********************',/)
-C     WRITE(*,*)'JFBC1 at end of FLTINIT NFP =',NFP
-C     CALL IMATPP(JFBC1,NFP)
-C     CALL MITPRT(JFBC1,2,NFP/2,NFP,6)
+C
+C     Output the boundary condition matrices (if VERBOSE > 0)
+C
+      IF(IVERB.GT.0)THEN
+        IDOUT=12
+        OPEN(IDOUT,FILE='FLT')
+        WRITE(IDOUT,20101)
+20101   FORMAT('Fault arrays from FLTINIT:',/,
+     :  '   J   IFBC1  IFBC2  IFEQV  JFBC1  JFBC2     EX       EY',
+     :  '  ITYPX ITYPY')
+        DO J=1,NFP
+          IF(IFBC1(J).GT.0)THEN
+            QEX=EX(IFBC1(J))
+            QEY=EY(IFBC1(J))
+          ELSE
+            QEX=EX(-IFBC1(J))
+            QEY=EY(-IFBC1(J))
+          ENDIF
+            IF2Q=IFBC2(J)
+            ITPX=IBCTYP(IF2Q)
+            ITPY=IBCTYP(IF2Q+NBP)
+          IF(IDEFTYP.GE.110)THEN
+            CALL PROJECTDEG(QEX,QEY,CENTLNG,YMID,1,-1,IERR)
+          ENDIF
+          WRITE(IDOUT,20102)J,IFBC1(J),IFBC2(J),IFEQV(J),
+     :                      JFBC1(J),JFBC2(J),QEX,QEY,ITPX,ITPY
+20102     FORMAT(I5,5I7,2F9.4,2I4)
+        ENDDO
+        CLOSE(IDOUT)
+C       WRITE(*,*)'IFBC1 at end of FLTINIT NFP =',NFP
+C       CALL IMATPP(IFBC1,NFP)
+C       CALL MITPRT(IFBC1,2,NFP/2,NFP,6)
+      ENDIF
       RETURN
 C    
 C    consistency checks only activated for debugging
@@ -312,7 +338,7 @@ C*    See README file for copying and redistribution conditions.
 C*--------------------------------------------------------------------
 
       SUBROUTINE SEMFLT(BIG,STK2,STK3,IK2,NK2,K2BW,
-     :                  EX,EY,LEM,NOR,IBCTYP,IBNGH,QLOAD,
+     :                  EX,EY,LEM,IBCTYP,IBNGH,QLOAD,
      :                  QBND,IFBC1,IFBC2,IFEQV,JFBC1,JFBC2,
      :                  VELXO,VELYO,IOFF,IFLT,IREM,
      :                  NUP,NE,NROWS,NBP,NFP,NFPF3,LUW,IERR)
@@ -330,7 +356,6 @@ C
       DOUBLE PRECISION QNX,QNY,QDST1,QDST2,QDSTM
       DIMENSION EX(NUP)
       DIMENSION EY(NUP)
-      DIMENSION NOR(NUP)
       DIMENSION LEM(6,NE)
       DIMENSION QLOAD(NROWS),QBND(NBP*2)
       DIMENSION IBCTYP(NBP*2),IBNGH(NBP*2)
@@ -338,8 +363,7 @@ C
       DIMENSION JFBC1(NFP),JFBC2(NFP)
       DIMENSION QNX(NFP),QNY(NFP)
       DIMENSION QDST1(NFP),QDST2(NFP),QDSTM(NFP)
-C     DIMENSION IDST(NFP)
-      DIMENSION LIK(3),LJK(3),LKK(3)
+      DIMENSION LKK(3)
       DIMENSION STK2(NK2),STK3(NFP),IK2(NK2)
 C
 C  NFP = the number of nodes on the fault
@@ -358,7 +382,6 @@ C          node in IFBC1. If JFBC1=0 then JFBC2=0
 C
       NFPO2=NFP/2
       IERR=0
-C     WRITE(*,*)'SEMFLT: NBP, NFP, NFPF3, NK2 =',NBP,NFP,NFPF3,NK2
 C
       DO I=1,NK2
         STK2(I)=0.D0
@@ -375,7 +398,6 @@ C   temporary arrays locally allocated
         QDST1(I)=0.0
         QDST2(I)=0.0
         QDSTM(I)=0.0
-C       IDST(I)=0
       ENDDO
 C
 C  for each node on the fault(s), identify if it is a midpint node
@@ -385,23 +407,20 @@ C
         JEL=JFBC1(I)
 C
 C  If JEL!=0, then IP1 is a midpoint node of the element JEL.
-C  LIK contains the absolute node numbers,
-C  LJK contains the local node number and 
-C  LKK contains the node positions in the IFBC1 array.
-C  boundary segment is LIK(1)-LIK(3)-LIK(2), counter-clockwise
+C  LJ1,2,3 contains the local node numbers of element side on fault and 
+C  LK1,2,3 contains the absolute node numbers, vertex-vertex-midpoint
+C  boundary segment is LK1-LK3-LK2, counter-clockwise
 C  although all fault nodes are listed in IFBC1,2, the continuity conditions
 C  require that the tractions are the same, so we only need to process nodes
-C  on one side of the fault. 
+C  on one side of the fault (IP1 > 0). 
 C
-        IF((JEL.NE.0).AND.(IP1.GT.0)) THEN
-          LJK(3)=JFBC2(I)
-          LJK(2)=LJK(3)-3
-          LJK(1)=MOD(LJK(2)+1,3)+1
-          LIK(1)=LEM(LJK(1),JEL)    ! node no. of vertex preceding
-          LIK(2)=LEM(LJK(2),JEL)    ! node no. of vertex following
-          LIK(3)=IP1                ! midpoint node no.
-          LK1=NOR(LIK(1))
-          LK2=NOR(LIK(2))
+        IF((JEL.NE.0).AND.(IP1.GT.0)) THEN     ! midpoint node
+          LJ3=JFBC2(I)
+          LJ2=LJ3-3
+          LJ1=MOD(LJ2+1,3)+1
+          LK1=LEM(LJ1,JEL)            ! node no. of vertex preceding
+          LK2=LEM(LJ2,JEL)            ! node no. of vertex following
+          LK3=IP1                     ! midpoint node no.
           D1=EX(LK2)-EX(LK1)
           D2=EY(LK2)-EY(LK1)
           DST=DSQRT(D1*D1+D2*D2)
@@ -410,47 +429,44 @@ C   find the addresses to store D1 and D2; store in QNX and QNY
 C   In general we expect 1 (midpoints) or 2 (vertex) contributions
 C   to QNX or QNY.  Endpoints of a terminating fault also expect 1.
 C
-          LKK(1)=0
-          LKK(2)=0
-          LKK(3)=I
-          DO 15 II=1,NFP
+          DO II=1,NFP
             IEX=IFBC1(II)
-            IF(LIK(1).EQ.IEX)THEN
-              LKK(1)=II
+            IF(LK1.EQ.IEX)THEN
               QDST1(II)=DST
-            ENDIF
-            IF(LIK(2).EQ.IEX)THEN
-              LKK(2)=II
+              QNX(II)=QNX(II)+D2
+              QNY(II)=QNY(II)+D1
+C             WRITE(*,*)'1: I,II,IEX,QNX,QNY=',I,II,IEX,
+C    :           QNX(II),QNY(II)
+            ELSE IF(LK2.EQ.IEX)THEN
               QDST2(II)=DST
+              QNX(II)=QNX(II)+D2
+              QNY(II)=QNY(II)+D1
+C             WRITE(*,*)'2: I,II,IEX,QNX,QNY=',I,II,IEX,
+C    :           QNX(II),QNY(II)
+            ELSE IF(LK3.EQ.IEX)THEN
+              QDSTM(II)=DST
+              QNX(II)=D2
+              QNY(II)=D1
+C             WRITE(*,*)'3: I,II,IEX,QNX,QNY=',I,II,IEX,
+C    :           QNX(II),QNY(II)
             ENDIF
-   15     CONTINUE
-          DO 20 JJ=1,3
-            IF(LKK(JJ).NE.0) THEN
-              QNX(LKK(JJ))=QNX(LKK(JJ))+D2
-              QNY(LKK(JJ))=QNY(LKK(JJ))+D1
-C             IDST(LKK(JJ))=IDST(LKK(JJ))+1     ! counter for debugging
-            END IF
-   20     CONTINUE
-        END IF
-   10 CONTINUE
-C     IF(IREM.NE.0)THEN
-C       DO K=1,NFP
-C         WRITE(*,*)'K,QNX(K),QNY(K)=',K,QNX(K),QNY(K)
-C       ENDDO
-C     ENDIF
+          ENDDO                                 ! II=1,NFP
+        END IF                                  ! JEL != 0, IP1 > 0
+   10 CONTINUE                                  ! I = 1,NFP
 C
 C  Load the matrix elements in STK2, IK2 and STK3 if needed
 C
       NSI1=0
       DO 100 I=1,NFP
         IP1=IFBC1(I)
+        IF2Q=IFBC2(I)
 C
 C   the following section uses only one side of the fault, but stores
 C   also the opposite normal vector for nodes on the opposite side
 C   of the fault.  It does not matter which side we use.
 C
         IF(IP1.GT.0) THEN
-          IP2=ABS(IFBC1(IFEQV(I)))
+          IP2=IABS(IFBC1(IFEQV(I)))
 C
 C  Evaluate the cosine and sine elements stored in QNX and QNY
 C  (where there are contributions from 2 elements we effectively average)
@@ -458,6 +474,9 @@ C
           ANX=QNX(I)
           ANY=QNY(I)
           QSR=DSQRT(ANX*ANX+ANY*ANY)
+          IF(QSR.EQ.0)THEN
+            WRITE(*,*)'QSR problem!!!!, I, IP1, IF2Q =',I,IP1,IF2Q
+          ENDIF
           IF(JFBC1(I).NE.0)QDSTM(I)=QSR
           ANX=ANX/QSR
           ANY=-ANY/QSR
@@ -499,16 +518,16 @@ C   QLOAD (and STK3) for faults comprises NFP/2 entries for normal
 C   components of traction followed by NFP/2 entries for tangential component.
 C   IBCTYP = 11: fault locked, IBCTYP = 21: friction coefficient applied
 C
-          IF(IBCTYP(IFBC2(I)).EQ.21)THEN
-            IF(QBND(IFBC2(I)).NE.0.0)THEN
-              STK3(NSI1)=-1.0/(AAA*QBND(IFBC2(I)))
+          IF(IBCTYP(IF2Q).EQ.21)THEN
+            IF(QBND(IF2Q).NE.0.0)THEN
+              STK3(NSI1)=-1.0/(AAA*QBND(IF2Q))
             ELSE
               STK3(NSI1)=BIG
             ENDIF
           ENDIF
-          IF(IBCTYP(IFBC2(I)+NBP).EQ.21)THEN
-            IF(QBND(IFBC2(I)+NBP).NE.0.0)THEN
-              STK3(NSI2)=-1.0/(AAA*QBND(IFBC2(I)+NBP))
+          IF(IBCTYP(IF2Q+NBP).EQ.21)THEN
+            IF(QBND(IF2Q+NBP).NE.0.0)THEN
+              STK3(NSI2)=-1.0/(AAA*QBND(IF2Q+NBP))
             ELSE
               STK3(NSI2)=BIG
             ENDIF
@@ -526,17 +545,8 @@ C
               QLOAD(NSI2)=VTO
             END IF
           ENDIF
-C
-C  if the fault is unlocked, set the tangential stress to YLDSTR
-C  with the appropriate sign   Setting of QLOAD to move to B.C.s ?
-C        *** under construction  ***
-          ISGN=-1
-C         IF(IBCTYP(IFBC2(I)).EQ.13.OR.IBCTYP(IFBC2(I)).EQ.14) THEN
-C           TSTR=ISGN*Y****R/AAA
-C           STK3(NSI2)=BIG
-C           QLOAD(NSI2+NUP2)=BIG*TSTR
-C         ENDIF
         ENDIF       ! if (IP1 > 0)
+C
   100 CONTINUE
 C     IF(IREM.NE.0)THEN
 C       WRITE(*,*)'IK2 array:NK2 =',NK2

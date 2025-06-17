@@ -53,7 +53,6 @@ OBJS = $(OBJDIR)/basmain.o\
 #   polyutils.h  used by polyutils.cc
 #   tripoly.h    used by polyutils.h trimesh.c tripoly.c
 #  Other items in basilsrc (unused ?)
-#   remesh.hold
 #   r4write.f     thermal.f  r8read.f 
 #   modremesh.mod
 # 

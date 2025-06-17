@@ -60,6 +60,16 @@ int main(int argc, char** argv)
                    blue=Blue1;
                    irgbv=Rgb2;
                    break;
+    case HAW_MAP:  red=Red1;
+                   green=Green1;
+                   blue=Blue1;
+                   irgbv=Rgb3;
+                   break;
+    case ROM_MAP:  red=Red1;
+                   green=Green1;
+                   blue=Blue1;
+                   irgbv=Rgb4;
+                   break;
     default:       fprintf(stderr,"Settings.colourmap = %i\n",Settings.colourmap);
                    red=Red1;
                    green=Green1;

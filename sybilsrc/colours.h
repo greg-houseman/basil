@@ -90,6 +90,32 @@ static int      Rgb1[STEPS*3]={       0,   0, 255,
                                     255,   0,   0,
                                     255, 128, 255
                                 };
+
+// The following table based on the "Hawaii" cpt file (Crameri, GMT)
+
+static int	Rgb3[STEPS*3]={	    179, 242, 253,
+				    102, 232, 211,
+				    108, 212, 140,
+				    138, 188,  72,
+				    156, 150,  28,
+				    155, 111,  40,
+				    150,  76,  63,
+				    146,  45,  86,
+				    140,   2, 115
+			      };
+
+// The following table based on the "Roma" cpt file (Crameri, GMT)
+
+static int	Rgb4[STEPS*3]={	      3,  49, 152,
+				     34, 106, 177,
+				     57, 157, 199,
+				    121, 210, 215,
+				    192, 234, 195,
+				    208, 202, 114,
+				    182, 140,  50,
+				    157,  88,  24,
+				    126,  23,   0
+			      };
 /*
  *  absolute value colourmap
 static int      Rgb2[STEPS*3]={       0,   0, 255,

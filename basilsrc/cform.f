@@ -190,6 +190,7 @@ C         DO 238 I=1,NN
 C           EY(I)=EY(I)-DEFV(3)
 C 238     CONTINUE
           YMIN=0.0
+        IF(DEFV(4).NE.0.0)THEN
           DO 239 I=1,NN
             Y=EY(I)
 C           IF(Y.LT.0.0)EY(I)=-DEFV(4)*Y*Y
@@ -201,7 +202,8 @@ C           IF(Y.LT.0.0)EY(I)=-DEFV(4)*Y*Y
   239     CONTINUE
           WRITE(LUW,10559)1.0+DEFV(4)
           WRITE(LSC,10559)1.0+DEFV(4)
-10559     FORMAT('Stretch factor ',F6.3,' applied below Y = 0')
+        ENDIF
+10559   FORMAT('Stretch factor ',F6.3,' applied below Y = 0')
 C         WRITE(LUW,10559)DEFV(3),DEFV(4)
 C         WRITE(LSC,10559)DEFV(3),DEFV(4)
 C10559     FORMAT('Mesh has been translated down ',F6.3,' unit,',
@@ -236,9 +238,9 @@ C           SCF=(YLEN-DEFV(3)-ABS(Y))
 C           IF(ABS(Y).GT.(YLEN-DEFV(3)))SCF=0.0
             EY(I)=Y-DY*SCF
   240     CONTINUE
-          WRITE(LUW,10560)DEFV(1),DEFV(2)
-          WRITE(LSC,10560)DEFV(1),DEFV(2)
-10560     FORMAT('Boundary (Y=0) has been perturbed: amplitude =',
+          WRITE(LUW,10560)DEFV(3),DEFV(1),DEFV(2)
+          WRITE(LSC,10560)DEFV(3),DEFV(1),DEFV(2)
+10560     FORMAT('Layer containing Y = ',F6.3,' perturbed: amplitude =',
      1    F6.4,'  relative wavenumber =',F6.3)
         END IF
       END IF

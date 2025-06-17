@@ -60,7 +60,7 @@ C
           K1=LEM(J1,N)
           K2=LEM(J2,N)
           K4=LEM(J4,N)
-          LK4=NOR(K4)
+          LK4=K4
           XM=EX(LK4)
           YM=EY(LK4)
           XT1=XM-XZERO
@@ -172,7 +172,7 @@ C
 C
       DO 300 I=1,NE
         DO K=4,6
-          ITEMP=NOR(LEM(K,I))-NN
+          ITEMP=LEM(K,I)-NN
           IF((ITEMP.LE.0).OR.(ITEMP.GT.NMP) ) THEN
             WRITE(6,10500)K,I,ITEMP
 10500       FORMAT('VSBTAB2 problem, stopping; K, I, ITEMP =',3I7)
@@ -264,11 +264,11 @@ C
       XMAX=0
       XMIN=1
       DO 600 I=1,NBP
-        IF(EX(NOR(IBC(I))).GT.XMAX) THEN
-          XMAX=EX(NOR(IBC(I)))
+        IF(EX(IBC(I)).GT.XMAX) THEN
+          XMAX=EX(IBC(I))
         END IF
-        IF(EX(NOR(IBC(I))).LT.XMIN) THEN
-          XMIN=EX(NOR(IBC(I)))
+        IF(EX(IBC(I)).LT.XMIN) THEN
+          XMIN=EX(IBC(I))
         END IF
   600 CONTINUE
 C
@@ -279,24 +279,24 @@ C
       YMINX=1
       YMAXX=0
       DO 601 I=1,NBP
-        IF((EX(NOR(IBC(I)))-XMIN.LT.EPS).AND.
-     :    (EY(NOR(IBC(I)))).LT.YMINM) THEN
-          YMINM=EY(NOR(IBC(I)))
+        IF((EX(IBC(I))-XMIN.LT.EPS).AND.
+     :    (EY(IBC(I))).LT.YMINM) THEN
+          YMINM=EY(IBC(I))
           KORNER(1)=IBC(I)
         END IF
-        IF((EX(NOR(IBC(I)))-XMIN.LT.EPS).AND.
-     :    (EY(NOR(IBC(I)))).GT.YMAXM) THEN
-          YMAXM=EY(NOR(IBC(I)))
+        IF((EX(IBC(I))-XMIN.LT.EPS).AND.
+     :    (EY(IBC(I))).GT.YMAXM) THEN
+          YMAXM=EY(IBC(I))
           KORNER(4)=IBC(I)
         END IF
-        IF((XMAX-EX(NOR(IBC(I))).LT.EPS).AND.
-     :    (EY(NOR(IBC(I)))).GT.YMAXX) THEN
-          YMAXX=EY(NOR(IBC(I)))
+        IF((XMAX-EX(IBC(I)).LT.EPS).AND.
+     :    (EY(IBC(I))).GT.YMAXX) THEN
+          YMAXX=EY(IBC(I))
           KORNER(3)=IBC(I)
         END IF
-        IF((XMAX-EX(NOR(IBC(I))).LT.EPS).AND.
-     :    (EY(NOR(IBC(I)))).LT.YMINX) THEN
-          YMINX=EY(NOR(IBC(I)))
+        IF((XMAX-EX(IBC(I)).LT.EPS).AND.
+     :    (EY(IBC(I))).LT.YMINX) THEN
+          YMINX=EY(IBC(I))
           KORNER(2)=IBC(I)
         END IF
   601 CONTINUE
@@ -306,7 +306,7 @@ C
 C****************************************************************************************
 C
       SUBROUTINE VSBCAPPLY(XLEN,YLEN,BIG,IFLTTIPS,EX,EY,QBND,
-     :                  POLEP,IPOLE,VSE,ARGAN,HLENSC,
+     :                  TANDF,POLEP,IPOLE,VSE,ARGAN,HLENSC,
      :                  CENTLNG,RPT2,NCOMP,NOR,LEM,IBC,IBNGH,IBCTYP,
      :                  IDEFTYP,ISEG,NSEG,NUP,NE,NN,NBP,IFLT,NFP,
      :                  NFPF3,IFBC1,IFBC2,IFEQV,JFBC1,JFBC2,
@@ -330,7 +330,7 @@ C
       DIMENSION IFBC1(NFP),IFBC2(NFP),IFEQV(NFP),JFBC1(NFP),JFBC2(NFP)
       DIMENSION IFLTTIPS(MAXTIPS*2)
       DIMENSION ISEG(3,NSEG),POLEP(3,MAXPOLE)
-      DIMENSION RPT2(4)
+      DIMENSION RPT2(4),TANDF(2)
 C
       XMID=CENTLNG
       LENGTH=LINELEN*2
@@ -366,6 +366,8 @@ C
       CALL FINDMLIM(EX,EY,NUP,XMIN,XMAX,YMIN,YMAX)
       XPT0=0.5*(XMIN+XMAX)
       YPT0=0.5*(YMIN+YMAX)
+      TANDF(1)=0.
+      TANDF(2)=0.
 C
 C    if spherical shell coordinate rotation is invoked pass
 C    rotation operators to PARSEBE via VSBCBE for poles and cref
@@ -394,7 +396,7 @@ C   'ON' statements are processed here
 C
       IF(INSTR(J1:J1+1).EQ.'ON')THEN
         CALL VSBCON(INSTR,IPR,XLEN,YLEN,BIG,IFLTTIPS,EX,EY,QBND,
-     :              ARGAN,HLENSC,CENTLNG,CT0,IDEFTYP,NOR,LEM,IBC,
+     :              TANDF,ARGAN,HLENSC,CENTLNG,CT0,IDEFTYP,LEM,IBC,
      :              IBNGH,IBCTYP,ISEG,NSEG,NUP,NE,NN,NBP,LBC,
      :              LUW,LSC,IDBUG,IERR)
         IF (IERR.NE.0)GO TO 50
@@ -406,7 +408,7 @@ C
      :               UTVAL1,UTVAL2,ITAP,IPR,XMIN,XMAX,YMIN,YMAX,IERR)
         KPBC=1
         IF(IXY(1:1).EQ.'Y')KPBC=2
-        CALL PERIBC(EX,EY,QBND,LEM,NOR,IBC,IBNGH,IBCTYP,
+        CALL PERIBC(EX,EY,QBND,LEM,IBC,IBNGH,IBCTYP,
      :              IFBC1,IFBC2,IFEQV,JFBC1,JFBC2,
      :              IFLT,NUP,NE,NBP,NFP,NFPF3,KPBC,
      :              PDIST,0,LUW,LSC,IERR)
@@ -415,8 +417,8 @@ C
 C   'BETWEEN, POLE, CREF' statements are processed by this routine
 C
       ELSE
-        CALL VSBCBE(INSTR,IPR,BIG,EX,EY,QBND,ARGAN,HLENSC,
-     :              CENTLNG,CT0,ROTIX,DPHI,NOR,LEM,IBC,IBNGH,IBCTYP,
+        CALL VSBCBE(INSTR,IPR,BIG,EX,EY,QBND,TANDF,ARGAN,HLENSC,
+     :              CENTLNG,CT0,ROTIX,DPHI,LEM,IBC,IBNGH,IBCTYP,
      :              NCOMP,NUP,NE,NN,NBP,XPT0,YPT0,POLEP,
      :              IPOLE,IDEFTYP,LBC,LUW,LSC,IDBUG,IERR)
         IF (IERR.NE.0) GO TO 50
@@ -489,31 +491,7 @@ C
       WRITE(LSC,10103)
 10103 FORMAT(/)
 C
-C     Output the boundary condition matrices (if debugging only)
-C
    50 CONTINUE
-C     IF(IERR.NE.0)RETURN
-      IF(IDBUG.NE.0)THEN
-        IDOUT=11
-        OPEN(IDOUT,FILE='BCS')
-        WRITE(IDOUT,10101)
-10101   FORMAT(' ',/,'Array data from VSBCON:',/,
-     :  '   J      X        Y      IBC  NGH1  NGH2 TYPX   QBND_X',
-     :  '    TYPY    QBND_Y')
-        DO 600 J=1,NBP
-          QEX=EX(IBC(J))
-          QEY=EY(IBC(J))
-          IF(IDEFTYP.GE.110)THEN
-            CALL PROJECTDEG(QEX,QEY,XMID,YMID,1,NCOMP,IERR)
-          ENDIF
-          JP=J+NBP
-          WRITE(IDOUT,10102)J,QEX,QEY,IBC(J),
-     :      IBNGH(J),IBNGH(JP),IBCTYP(J),QBND(J),IBCTYP(JP),QBND(JP)
-10102     FORMAT(I5,2F9.3,3I6,I4,G14.5,I4,G14.5)
-  600   CONTINUE
-        CLOSE(IDOUT)
-      ENDIF
-C
       RETURN
       END
 C
@@ -604,8 +582,8 @@ C
 C****************************************************************************************
 C
       SUBROUTINE VSBCON(INSTR,IPR,XLEN,YLEN,BIG,IFLTTIPS,EX,EY,QBND,
-     :                  ARGAN,HLENSC,CENTLNG,CT0,IDEFTYP,NOR,LEM,IBC,
-     :                  IBNGH,IBCTYP,ISEG,NSEG,NUP,NE,NN,NBP,LBC,
+     :                  TANDF,ARGAN,HLENSC,CENTLNG,CT0,IDEFTYP,LEM,
+     :                  IBC,IBNGH,IBCTYP,ISEG,NSEG,NUP,NE,NN,NBP,LBC,
      :                  LUW,LSC,IDBUG,IERR)
 C
 C    This routine tests each point on the IBC table using the boundary
@@ -651,7 +629,6 @@ C
       DIMENSION EX(NUP)
       DIMENSION EY(NUP)
       DIMENSION LEM(6,NE)
-      DIMENSION NOR(NUP)
       DIMENSION QBND(NBP*2)
       DIMENSION IBC(NBP),IBNGH(NBP*2),IBCTYP(NBP*2)
       CHARACTER IYX*1
@@ -661,9 +638,8 @@ C
       DIMENSION IFLTTIPS(MAXTIPS*2)
       DIMENSION BBOX(2,4)
       DIMENSION ISEG(3,NSEG)
-      LOGICAL VALID, VALIDA, VALIDB
-      INTEGER PNTONSEGMENT
-
+      DIMENSION TANDF(2)
+C
       EPSR=5.E-6
       EPSR=1.E-5  !basil1.2.7
       PMID=2.0/3.0
@@ -676,9 +652,6 @@ C
       YMAX = BBOX(2,4)
       XMIN = BBOX(1,1)
       XMAX = BBOX(1,2)
-      IRECT = 0
-      IF (BBOX(1,1).GT.BBOX(1,4)-EPSR.AND.BBOX(1,1).LT.BBOX(1,4)+EPSR)
-     :  IRECT = 1
       YMID=(YMAX-YMIN)*0.5
 C
 C   only 'ON' statements are recognised by this routine
@@ -712,71 +685,33 @@ C
         NODE=IBC(JX)
         NODEA=IBNGH(JX)
         NODEB=IBNGH(JY)
-        NNODE=NOR(NODE)
-        NNODEA=NOR(NODEA)
-        NNODEB=NOR(NODEB)
-        XN=EX(NNODE)
-        YN=EY(NNODE)
-        XNA=EX(NNODEA)
-        YNA=EY(NNODEA)
-        XNB=EX(NNODEB)
-        YNB=EY(NNODEB)
+        XN=EX(NODE)
+        YN=EY(NODE)
+        XNA=EX(NODEA)
+        YNA=EY(NODEA)
+        XNB=EX(NODEB)
+        YNB=EY(NODEB)
+        NCORNA=0         ! remains zero if NODEA not on set segment
+        NCORNB=0         ! remains zero if NODEB not on set segment
         NODSET=0         ! to be changed if BC to be set
 C
 C     If setting on constant X boundary
 C
         IF(IXY(1:1).EQ.'X')THEN
-C
-C VALIDA and VALIDB used in setting BND below, but why needed ?
-C 
-          VALID = .FALSE.
-          VALIDA = .FALSE.
-          VALIDB = .FALSE.
-          IF (IRECT.EQ.1) THEN
-          VALID= (ABS(XN-XYVAL).LT.EPSR).AND.
-     :            (YN.GT.YXLIM1-EPSR).AND.(YN.LT.YXLIM2+EPSR)
-          VALIDA= (ABS(XNA-XYVAL).LT.EPSR).AND.
-     :            (YNA.GT.YXLIM1-EPSR).AND.(YNA.LT.YXLIM2+EPSR)
-          VALIDB= (ABS(XNB-XYVAL).LT.EPSR).AND.
-     :            (YNB.GT.YXLIM1-EPSR).AND.(YNB.LT.YXLIM2+EPSR)
-C         ELSE   !  when exactly would this ELSE block be used ?
-C           IF (XYVAL.EQ.XMIN) THEN
-C           VALID = (PNTONSEGMENT(XN,YN,BBOX(1,1),BBOX(2,1),
-C    :                           BBOX(1,4),BBOX(2,4)).EQ.1)
-C           VALIDA = (PNTONSEGMENT(XNA,YNA,BBOX(1,1),BBOX(2,1),
-C    :                           BBOX(1,4),BBOX(2,4)).EQ.1)
-C           VALIDB = (PNTONSEGMENT(XNB,YNB,BBOX(1,1),BBOX(2,1),
-C    :                           BBOX(1,4),BBOX(2,4)).EQ.1)
-C           ELSE
-C           VALID = (PNTONSEGMENT(XN,YN,BBOX(1,2),BBOX(2,2),
-C    :                           BBOX(1,3),BBOX(2,3)).EQ.1)
-C           VALIDA = (PNTONSEGMENT(XNA,YNA,BBOX(1,2),BBOX(2,2),
-C    :                           BBOX(1,3),BBOX(2,3)).EQ.1)
-C           VALIDB = (PNTONSEGMENT(XNB,YNB,BBOX(1,2),BBOX(2,2),
-C    :                           BBOX(1,3),BBOX(2,3)).EQ.1)
-C           ENDIF
-          ENDIF
           IF(ABS(XN-XYVAL).LT.EPSR)NODSET=1
+          IF(ABS(XNA-XYVAL).LT.EPSR)NCORNA=1
+          IF(ABS(XNB-XYVAL).LT.EPSR)NCORNB=1
 C
 C     If setting on constant Y boundary
 C
         ELSE IF(IXY(1:1).EQ.'Y')THEN
-           IF(ABS(YN-XYVAL).LT.EPSR)NODSET=1
-C
-C     If setting on a specified boundary segment number
-C
-        ELSE IF(IXY(1:1).EQ.'B')THEN
-          DO I=1,NSEG
-            IF (ISEG(3,I).EQ.IBND)THEN     ! careful don't double-dip on stress
-              IF((ISEG(1,I).EQ.NNODE.OR.ISEG(2,I).EQ.NNODE).OR.    !vertex
-     :           (ISEG(1,I).EQ.NNODEA.AND.ISEG(2,I).EQ.NNODEB).OR. !midpoint
-     :           (ISEG(1,I).EQ.NNODEB.AND.ISEG(2,I).EQ.NNODEA))
-     :        NODSET=1
-            ENDIF
-          ENDDO
+          IF(ABS(YN-XYVAL).LT.EPSR)NODSET=1
+          IF(ABS(YNA-XYVAL).LT.EPSR)NCORNA=1
+          IF(ABS(YNB-XYVAL).LT.EPSR)NCORNB=1
         ENDIF
 C
-C     use secondary coordinate to restrict application
+C     use secondary coordinate to restrict application outside
+C     specified limits
 C
         IF(IYX.NE.' ')THEN
           XPTU=XN
@@ -785,21 +720,40 @@ C
      :      CALL PROJECTDEG(XPTU,YPTU,CENTLNG,YMID,1,NCOMP,IERR)
           YXL1=YXLIM1-EPSR   ! to ensure end points captured
           YXL2=YXLIM2+EPSR
+          IF(YXLIM1.GT.YXLIM2)THEN
+            YXL1=YXLIM2-EPSR
+            YXL2=YXLIM1+EPSR
+          ENDIF
           IF(IYX.EQ.'X')THEN
             IF((XPTU.LT.YXL1).OR.(XPTU.GT.YXL2))NODSET=0
-            IF((XNA.LT.YXL1).OR.(XNA.GT.YXL2))XNA=XN
-            IF((XNB.LT.YXL1).OR.(XNB.GT.YXL2))XNB=XN
+            IF((XNA.LT.YXL1).OR.(XNA.GT.YXL2))NCORNA=0
+            IF((XNB.LT.YXL1).OR.(XNB.GT.YXL2))NCORNB=0
           ELSEIF(IYX.EQ.'Y')THEN
             IF((YPTU.LT.YXL1).OR.(YPTU.GT.YXL2))NODSET=0
-            IF((YNA.LT.YXL1).OR.(YNA.GT.YXL2))YNA=XN
-            IF((YNB.LT.YXL1).OR.(YNB.GT.YXL2))YNB=XN
+            IF((YNA.LT.YXL1).OR.(YNA.GT.YXL2))NCORNA=0
+            IF((YNB.LT.YXL1).OR.(YNB.GT.YXL2))NCORNB=0
           ENDIF
+        ENDIF
+C
+C    If setting on a specified boundary segment number
+C
+        IF(IXY(1:1).EQ.'B')THEN
+          DO I=1,NSEG
+            IF(ISEG(3,I).EQ.IBND)THEN
+              IF((ISEG(1,I).EQ.NODE.OR.ISEG(2,I).EQ.NODE))NODSET=2    ! vertex
+              IF(((ISEG(1,I).EQ.NODEA).AND.(ISEG(2,I).EQ.NODEB)).OR.
+     :           ((ISEG(1,I).EQ.NODEB).AND.(ISEG(2,I).EQ.NODEA)))
+     :          NODSET=3 ! midpoint
+              IF((ISEG(1,I).EQ.NODEA).OR.(ISEG(2,I).EQ.NODEA))NCORNA=1
+              IF((ISEG(1,I).EQ.NODEB).OR.(ISEG(2,I).EQ.NODEB))NCORNB=1
+            ENDIF
+          ENDDO
         ENDIF
 C
 C    If NODSET is set, we now set a boundary condition on this node
 C    first set conditions that don't depend on segment lengths
 C
-        IF(NODSET.EQ.1)THEN
+        IF(NODSET.GT.0)THEN
           JSET=JSET+1
 C
 C    Apply a taper if the FOR block is defined and ITAP != 0
@@ -813,36 +767,25 @@ C
           ENDIF
 C
 C    this one doesn't set a boundary condition, but labels the boundary
-C    VALIDA and VALIDB defined above - but to what purpose ?
 C
           IF(IUT.EQ.'BND')THEN
             DO I=1,NSEG
-              IF ((ISEG(1,I).EQ.NNODE).AND.
-     :            ((ISEG(2,I).EQ.NNODEA.AND.VALIDA).OR.
-     :              (ISEG(2,I).EQ.NNODEB.AND.VALIDB))) THEN
+              IF ((ISEG(1,I).EQ.NODE).AND.
+     :            ((ISEG(2,I).EQ.NODEA.AND.(NCORNA.NE.0)).OR.
+     :              (ISEG(2,I).EQ.NODEB.AND.(NCORNB.NE.0)))) THEN
                 ISEG(3,I)=INT(UTVAL+EPSR)
-              ELSE IF ((ISEG(2,I).EQ.NNODE).AND.
-     :            ((ISEG(1,I).EQ.NNODEA.AND.VALIDA).OR.
-     :              (ISEG(1,I).EQ.NNODEB.AND.VALIDB))) THEN
+              ELSE IF ((ISEG(2,I).EQ.NODE).AND.
+     :            ((ISEG(1,I).EQ.NODEA.AND.(NCORNA.NE.0)).OR.
+     :              (ISEG(1,I).EQ.NODEB.AND.(NCORNB.NE.0)))) THEN
                 ISEG(3,I)=INT(UTVAL+EPSR)
               ENDIF
             ENDDO
 C
 C   set fixed displacement rate conditions (UX, UY or UB (both))
 C
-          ELSE IF(IUT.EQ.'UX')THEN
-C           IF (IXY(2:2).EQ.' ') THEN   ! test doesn't work with ON BND ....
-              IBCTYP(JX)=0
-              QBND(JX)=UTVAL
-C           ELSE            !   for a fault surface (+ or -)
-C     n.b. if these blocks activated move setting of XNA,XNB below
-C             XDIFF=(XNA+XNB)/2.0-XN
-C             IF ((IXY(2:2).EQ.'+'.AND.XDIFF.GT.0).OR.
-C    1                    (IXY(2:2).EQ.'-'.AND.XDIFF.LT.0)) THEN
-C                   IF(IBCTYP(JX).LT.0) IBCTYP(JX)=0
-C                   QBND(JX)=UTVAL
-C             END IF
-C           END IF
+          ELSE IF(IUT.EQ.'UX')THEN     ! set X component of velocity
+            IBCTYP(JX)=0
+            QBND(JX)=UTVAL
           ELSE IF(IUT.EQ.'UY')THEN     ! set Y component of velocity
             IBCTYP(JY)=0
             QBND(JY)=UTVAL
@@ -856,104 +799,79 @@ C    in relation to nodes on faults: in general pairs of nodes are listed
 C    in sequence in IBC, we set the conditions on both nodes in each pair
 C    the same even though we only need one pair.  In any case they should 
 C    be the same for continuity of traction to hold.
-C    locks a fault (default anyway, but may be useful in some cases)
+C    Note, however, a fault tip that is not attached to another boundary
+C    does not have a paired node and its boundary node attributes should 
+C    not be changed by VSBCON. IBCTYP set by createafault is 15.
+C    FL locks a fault (default anyway, but may be useful in some cases)
 C
           ELSE IF(IUT.EQ.'FL')THEN
-            IBCTYP(JX)=11
-            IBCTYP(JY)=11              
-            QBND(JX)=0.0
-            QBND(JY)=0.0
+            IF(IBCTYP(JX).NE.15)THEN
+              IBCTYP(JX)=11
+              IBCTYP(JY)=11              
+              QBND(JX)=0.0
+              QBND(JY)=0.0
+            ELSE
+              JSET=JSET-1     ! 1 node not changed
+            ENDIF
 C
 C    unlocks a fault for zero shear stress, continuous nornmal stress
 C
           ELSE IF(IUT.EQ.'FU')THEN
-            IBCTYP(JX)=11
-            IBCTYP(JY)=21              
-            QBND(JX)=0.0
-            QBND(JY)=0.0
+            IF(IBCTYP(JX).NE.15)THEN
+              IBCTYP(JX)=11
+              IBCTYP(JY)=21              
+              QBND(JX)=0.0
+              QBND(JY)=0.0
+            ELSE
+              JSET=JSET-1
+            ENDIF
 C
 C    set friction coefficient on a fault (or unlock it if zero)
 C    setting of conditions including segment length dependence 
-C    is managed in SEMFLT for FT and FN
+C    is managed in SEMFLT for FT and FN independently
 C
-          ELSE IF(IUT.EQ.'FN')THEN             ! normal
-            IBCTYP(JX)=21
-            QBND(JX)=UTVAL
-          ELSE IF(IUT.EQ.'FT')THEN             ! tangential
-            IBCTYP(JY)=21
-            QBND(JY)=UTVAL
+          ELSE IF(IUT.EQ.'FN')THEN        ! normal component
+            IF(IBCTYP(JX).NE.15)THEN
+              IBCTYP(JX)=21
+              QBND(JX)=UTVAL
+            ELSE
+              JSET=JSET-1
+            ENDIF
+          ELSE IF(IUT.EQ.'FT')THEN        ! tangential component
+            IF(IBCTYP(JX).NE.15)THEN
+              IBCTYP(JY)=21
+              QBND(JY)=UTVAL
+            ELSE
+              JSET=JSET-1
+            ENDIF
 C
 C    all other conditions require segment lengths so these are first determined
 C    Setting segment lengths here is not robust to geometry change if time-stepping
 C    Solution would be to move actual setting to QLOADBC called by CGRUN
+C    if NCORNA/B == 0 then NODE is an endpoint of required segment
 C
           ELSE
-            XDIFA=XN-XNA
-            XDIFB=XNB-XN
-            YDIFA=YN-YNA
-            YDIFB=YNB-YN
+            XDIFA=0.0
+            XDIFB=0.0
+            YDIFA=0.0
+            YDIFB=0.0
+            IF(NCORNA.NE.0)THEN
+              XDIFA=XN-XNA
+              YDIFA=YN-YNA
+            ENDIF
+            IF(NCORNB.NE.0)THEN
+              XDIFB=XNB-XN
+              YDIFB=YNB-YN
+            ENDIF
             DLENA=SQRT(XDIFA*XDIFA+YDIFA*YDIFA)
             DLENB=SQRT(XDIFB*XDIFB+YDIFB*YDIFB)
 C
-C   the following conditionals seem to deal with corners; can simplify ??
-C
-            IF(NNODE.LE.NN)THEN                   ! if a vertex node
+            IF(NODE.LE.NN)THEN                   ! if a vertex node
               PC=PVERT
-              XBIF=0.0
-              YBIF=0.0
-              DLEN=0.0
-              IF(IXY(1:1).EQ.'X')THEN
-                IF (IRECT.EQ.1) THEN               ! if region is rectangular
-                  IF(ABS(XNA-XYVAL).LT.EPSR)THEN
-                    DLEN=DLEN+DLENA
-                    XBIF=XBIF+XDIFA
-                    YBIF=YBIF+YDIFA
-                  ENDIF
-                  IF(ABS(XNB-XYVAL).LT.EPSR)THEN
-                    DLEN=DLEN+DLENB
-                    XBIF=XBIF+XDIFB
-                    YBIF=YBIF+YDIFB
-                  ENDIF
-                ELSE IF (XYVAL.EQ.XMIN) THEN        ! for irregular shape
-                  IF (PNTONSEGMENT(XNA,YNA,BBOX(1,1),BBOX(2,1),
-     :                           BBOX(1,4),BBOX(2,4)).EQ.1)THEN
-                    DLEN=DLEN+DLENA
-                    XBIF=XBIF+XDIFA
-                    YBIF=YBIF+YDIFA
-                  ENDIF
-                  IF (PNTONSEGMENT(XNB,YNB,BBOX(1,1),BBOX(2,1),
-     :                           BBOX(1,4),BBOX(2,4)).EQ.1)THEN
-                    DLEN=DLEN+DLENB
-                    XBIF=XBIF+XDIFB
-                    YBIF=YBIF+YDIFB
-                  ENDIF
-                ELSE IF (XYVAL.EQ.XMAX) THEN
-                  IF (PNTONSEGMENT(XNA,YNA,BBOX(1,2),BBOX(2,2),
-     :                           BBOX(1,3),BBOX(2,3)).EQ.1)THEN
-                    DLEN=DLEN+DLENA
-                    XBIF=XBIF+XDIFA
-                    YBIF=YBIF+YDIFA
-                  ENDIF
-                  IF (PNTONSEGMENT(XNB,YNB,BBOX(1,1),BBOX(2,1),
-     :                           BBOX(1,3),BBOX(2,3)).EQ.1)THEN
-                    DLEN=DLEN+DLENB
-                    XBIF=XBIF+XDIFB
-                    YBIF=YBIF+YDIFB
-                  ENDIF
-                END IF
-              ELSE IF(IXY(1:1).EQ.'Y')THEN
-                IF(ABS(YNA-XYVAL).LT.EPSR)THEN
-                  DLEN=DLEN+DLENA
-                  XBIF=XBIF+XDIFA
-                  YBIF=YBIF+YDIFA
-                ENDIF
-                IF(ABS(YNB-XYVAL).LT.EPSR)THEN
-                  DLEN=DLEN+DLENB
-                  XBIF=XBIF+XDIFB
-                  YBIF=YBIF+YDIFB
-                ENDIF
-              END IF
-            ELSE                      ! if a midpoint node (no corners)
+              DLEN=DLENA+DLENB
+              XBIF=XDIFA+XDIFB
+              YBIF=YDIFA+YDIFB
+            ELSE                                 ! if a midpoint node
               PC=PMID
               XBIF=XNB-XNA
               YBIF=YNB-YNA
@@ -961,22 +879,24 @@ C
             ENDIF                     ! setting of segment lengths
 C
 C    set fixed traction conditions (adding to QBND, so that corners
-C    may get contributions from both boundaries)
+C    may get contributions from both boundaries). Factor of 2 in RMAG 
+C    added on 240831 to ensure fit to TVS analytical solutions
 C
             IF(IUT.EQ.'TX')THEN
+              RMAG=2.0*PC
               IF(IBCTYP(JX).NE.1)QBND(JX)=0.0
               IBCTYP(JX)=1
-              QBND(JX)=QBND(JX)+UTVAL*PC*DLEN
+              QBND(JX)=QBND(JX)+UTVAL*DLEN*RMAG
             ELSE IF(IUT.EQ.'TY')THEN
+              RMAG=2.0*PC
               IF(IBCTYP(JY).NE.1)QBND(JY)=0.0
               IBCTYP(JY)=1
-              QBND(JY)=QBND(JY)+UTVAL*PC*DLEN
+              QBND(JY)=QBND(JY)+UTVAL*DLEN*RMAG
 C
-C    for TN: normal traction, magnitude is relative to the body
-C    forces as scaled by Argand number (as used in MENDBC)
+C    for TN: normal traction
 C
             ELSE IF(IUT.EQ.'TN')THEN
-              RMAG=PC*CT0
+              RMAG=2.0*PC
               IF(IBCTYP(JX).NE.1)QBND(JX)=0.0
               IBCTYP(JX)=1
               QBND(JX)=QBND(JX)+UTVAL*YBIF*RMAG
@@ -984,11 +904,10 @@ C
               IBCTYP(JY)=1
               QBND(JY)=QBND(JY)-UTVAL*XBIF*RMAG
 C
-C    for TT: tangential traction, magnitude is relative to the body
-C    forces as scaled by Argand number (+ve is anti-clockwise)
+C    for TT: tangential traction
 C
             ELSE IF(IUT.EQ.'TT')THEN
-              RMAG=PC*CT0
+              RMAG=2.0*PC
               IF(IBCTYP(JX).NE.1)QBND(JX)=0.0
               IBCTYP(JX)=1
               QBND(JX)=QBND(JX)+UTVAL*XBIF*RMAG
@@ -997,12 +916,28 @@ C
               QBND(JY)=QBND(JY)+UTVAL*YBIF*RMAG
 C
 C    set friction coefficient on external boundary (QBND incremented, as above)
+C    IBCTYP = 22 deals with a corner where traction and friction are applied for 
+C    two adjacent boundary segments.  Traction condition must be set first.  
+C    Only one corner of this type is dealt with, pending further amendment. 
+C    for IBCTYP 22, The QBND value holds the friction (used in SEMBL) and the
+C    traction already set is nudged to TANDF and (used in LOADBC) - must be
+C    separately stored for separate use.
 C
             ELSE IF(IUT.EQ.'FX')THEN
-              IBCTYP(JX)=2
+              IF(IBCTYP(JX).EQ.1)THEN
+                IBCTYP(JX)=22
+                TANDF(1)=QBND(JX)
+                QBND(JX)=0.
+              ENDIF
+              IF(IBCTYP(JX).NE.22)IBCTYP(JX)=2
               QBND(JX)=QBND(JX)+UTVAL*PC*DLEN
             ELSE IF(IUT.EQ.'FY')THEN
-              IBCTYP(JY)=2
+              IF(IBCTYP(JY).EQ.1)THEN
+                IBCTYP(JY)=22
+                TANDF(2)=QBND(JY)
+                QBND(JY)=0.
+              ENDIF
+              IF(IBCTYP(JY).NE.22)IBCTYP(JY)=2
               QBND(JY)=QBND(JY)+UTVAL*PC*DLEN
             ENDIF            ! end of traction-related BC options
           ENDIF              ! conditions that require segment lengths
@@ -1050,7 +985,7 @@ C      should it be in VSBCON ?  Depends how IFLTTIPS is used
 C
 C              DO K=1,MAXTIPS
 C                IF (IFLTTIPS(K).EQ.0)THEN
-C                  IFLTTIPS(K) = NNODE 
+C                  IFLTTIPS(K) = NODE 
 C                  GO TO 1010
 C                ENDIF
 C                    only save one node if internal fault
@@ -1065,8 +1000,8 @@ C1010          CONTINUE
 C
 C****************************************************************************************
 C
-      SUBROUTINE VSBCBE(INSTR,IPR,BIG,EX,EY,QBND,ARGAN,HLENSC,
-     :                  CENTLNG,CT0,ROTIX,DPHI,NOR,LEM,IBC,IBNGH,
+      SUBROUTINE VSBCBE(INSTR,IPR,BIG,EX,EY,QBND,TANDF,ARGAN,HLENSC,
+     :                  CENTLNG,CT0,ROTIX,DPHI,LEM,IBC,IBNGH,
      :                  IBCTYP,NCOMP,NUP,NE,NN,NBP,XPT0,YPT0,
      :                  POLEP,IPOLE,IDEFTYP,
      :                  LBC,LUW,LSC,IDBUG,IERR)
@@ -1084,9 +1019,7 @@ C        and for the fault:
 C
 C        Ensure that velocity takes precedence over traction condition
 C         at a discontinuity by placing the velocity condition after
-C         the traction condition in the bc file.
-C        (A discontinuity between applied friction and traction is not
-C         rigorously dealt with in present version of program)
+C         the traction condition in the input file.
 C       
 C        For the case with a fault, the external boundary must come
 C        first in the bc file and then the fault. At the present the 
@@ -1111,10 +1044,9 @@ C
       DIMENSION EX(NUP)
       DIMENSION EY(NUP)
       DIMENSION LEM(6,NE)
-      DIMENSION NOR(NUP)
       DIMENSION QBND(NBP*2)
       DIMENSION IBC(NBP),IBNGH(NBP*2),IBCTYP(NBP*2)
-      DIMENSION POLEP(3,MAXPOLE),POLET(3),RPT2(4)
+      DIMENSION POLEP(3,MAXPOLE),POLET(3),TANDF(2)
 C
       TOOPI=2.0*PI      ! PI and DTOR are in limits.parameters
       EPSR=1.E-6
@@ -1145,15 +1077,6 @@ C
       AZ2=ATAN2(YDIF,XDIF)
       IF(IPR.EQ.4)UTVAL=UTVAL1
 C
-C    if using a rotation pole, set pole parameters for fixed velocity
-C    will be overwritten inside loop if ITAP != 0
-C
-      IF(IPR.EQ.5)THEN
-        DO K=1,3
-          POLET(K)=POLEP(K,IP1)
-        ENDDO
-      END IF
-C
 C     For each node on the boundary
 C
 C     write(*,*)'VSBCBE, NN NBP',NN,NBP
@@ -1165,7 +1088,7 @@ C     CALL MITPRT(IBNGH,NBP,2,2*NBP,6)
         IF((IBCTYP(JX).LT.10).OR.(IBCTYP(JX).GT.500))THEN     !don't hit fault nodes
           JY=JX+NBP
           NODE=IBC(JX)
-          NNODE=NOR(NODE)
+          NNODE=NODE
           NNODE=IBC(JX)
           XN=EX(NNODE)
           YN=EY(NNODE)
@@ -1185,8 +1108,8 @@ C
             IF(IUT(1:1).EQ.'T'.OR.IUT(1:1).EQ.'F')THEN
               NODEA=IBNGH(JX)
               NODEB=IBNGH(JY)
-              NNODEA=NOR(NODEA)
-              NNODEB=NOR(NODEB)
+              NNODEA=NODEA
+              NNODEB=NODEB
               XNA=EX(NNODEA)
               YNA=EY(NNODEA)
               XNB=EX(NNODEB)
@@ -1238,39 +1161,30 @@ C
 C
 C     apply the taper based on azimuth of point relative to CREF
 C
-            CSRAT=1.0
+            UTVAL=1.0
             IF(ITAP.NE.0)THEN
               S1=AZ1
               S2=AZ2
               SZ=AZ
-C             IF((AZ1.GE.AZ2).AND.(AZ.LE.AZ2))THEN
-C               S1=AZ1-TOOPI
-C             ELSE IF((AZ1.GE.AZ2).AND.(AZ.GE.AZ1))THEN
-C               S2=AZ2+TOOPI
               IF(AZ1.GT.AZ2)THEN
                 S2=AZ2+TOOPI
                 IF(AZ.LT.AZ2)SZ=SZ+TOOPI
               ENDIF                     ! crossing azimuth discontinuity
-              IF(IPR.EQ.4)THEN          ! Cartesian taper
-                CALL TAPER(ITAP,S1,S2,UTVAL1,UTVAL2,SZ,UTVAL)
-              ELSE IF(IPR.EQ.5)THEN     ! spherical taper
-                IF(IP1.NE.IP2)THEN
-                  CALL PTAPER(ITAP,S1,S2,SZ,CSRAT,
-     :                  POLEP(1,IP1),POLEP(1,IP2),POLET)
-                ENDIF                    ! endpoints differ
-C               WRITE(*,*)'vsbcon: S1,S2,SZ,JX,CSRAT=',S1,S2,SZ,JX,CSRAT
-              END IF                     ! spherical/cartesian taper
+              IF(IPR.EQ.5)THEN          ! interpolating pole of rotation
+                UTVAL1=1.0
+                UTVAL2=0.0
+              END IF
+              CALL TAPER(ITAP,S1,S2,UTVAL1,UTVAL2,SZ,UTVAL)
             END IF                       ! if taper applied
 C
-C   displacement rates derived from a pole of rotation evaluated by
-C   VSBSET using Pole numbers and possible taper values saved here
-C   POLET(1,2,3) are long, lat and rate for pole
+C   displacement rates derived from a pole of rotation are evaluated by
+C   VSBSET using Pole numbers and taper values saved here
 C
             IF(IPR.EQ.5)THEN             ! rotation on sphere
               IBCTYP(JX)=500+IP1
               IBCTYP(JY)=500+IP2
-              QBND(JX)=CSRAT
-              QBND(JY)=0.0
+              QBND(JX)=UTVAL
+              QBND(JY)=1.0-UTVAL
 C
 C   set fixed displacement rate conditions
 C
@@ -1296,12 +1210,12 @@ C          integral{Pny.ds} = integral{P dx}
 C   for vertices, int{P dx}+ int{P dx'} = int{P (dx+dx')}
 C
               ELSE IF(IUT.EQ.'TX')THEN
-                RMAG=PC*CT0
+                RMAG=2.0*PC
                 IF(IBCTYP(JX).NE.1)QBND(JX)=0.0
                 IBCTYP(JX)=1
                 QBND(JX)=QBND(JX)+UTVAL*DLEN*RMAG
               ELSE IF(IUT.EQ.'TY')THEN
-                RMAG=PC*CT0
+                RMAG=2.0*PC
                 IF(IBCTYP(JY).NE.1)QBND(JY)=0.0
                 IBCTYP(JY)=1
                 QBND(JY)=QBND(JY)+UTVAL*DLEN*RMAG
@@ -1310,7 +1224,7 @@ C    for TN: normal traction, magnitude is relative to the body
 C    forces as scaled by Argand number (as used in MENDBC)
 C
               ELSE IF(IUT.EQ.'TN')THEN
-                RMAG=PC*CT0
+                RMAG=2.0*PC
                 IF(IBCTYP(JX).NE.1)QBND(JX)=0.0
                 IBCTYP(JX)=1
                 QBND(JX)=QBND(JX)+UTVAL*YBIF*RMAG
@@ -1322,7 +1236,7 @@ C    for TT: tangential traction, magnitude is relative to the body
 C    forces as scaled by Argand number (+ve is anti-clockwise)
 C
               ELSE IF(IUT.EQ.'TT')THEN
-                RMAG=PC*CT0
+                RMAG=2.0*PC
                 IF(IBCTYP(JX).NE.1)QBND(JX)=0.0
                 IBCTYP(JX)=1
                 QBND(JX)=QBND(JX)+UTVAL*XBIF*RMAG
@@ -1333,10 +1247,20 @@ C
 C    set friction coefficient on boundary (QBND incremented, as above)
 C
               ELSE IF(IUT.EQ.'FX')THEN
-                IBCTYP(JX)=2
+                IF(IBCTYP(JX).EQ.1)THEN
+                  IBCTYP(JX)=22
+                  TANDF(1)=QBND(JX)
+                  QBND(JX)=0.
+                ENDIF
+                IF(IBCTYP(JX).NE.22)IBCTYP(JX)=2
                 QBND(JX)=QBND(JX)+UTVAL*PC*DLEN
               ELSE IF(IUT.EQ.'FY')THEN
-                IBCTYP(JY)=2
+                IF(IBCTYP(JY).EQ.1)THEN
+                  IBCTYP(JY)=22
+                  TANDF(2)=QBND(JY)
+                  QBND(JY)=0.
+                ENDIF
+                IF(IBCTYP(JY).NE.22)IBCTYP(JY)=2
                 QBND(JY)=QBND(JY)+UTVAL*PC*DLEN
               END IF                 !(if value of IUT: UX, UY, etc)
             END IF                   ! set poles or UX, TX etc
@@ -1376,9 +1300,6 @@ C
       SAVE IFRST
 C
       RTOD=1.0/DTOR
-      S1=0.0
-      S2=1.0
-      SS=0.0
       NC=0
 C
 C     For each node on the boundary
@@ -1396,28 +1317,25 @@ C
               POLET(K)=POLEP(K,IP1)
             ENDDO
           ELSE                     ! use pole tapered between pole1 and pole2
-            TAPER=QBND(JX)
-            CALL PTAPER(-1,S1,S2,SS,TAPER,
-     :                  POLEP(1,IP1),POLEP(1,IP2),POLET)
+            R1=QBND(JX)
+            R2=QBND(JY)
+            CALL QTAPER(POLEP(1,IP1),POLEP(1,IP2),POLET,R1,R2)
           ENDIF
           NODE=IBC(JX)
           XN=EX(NODE)
           YN=EY(NODE)
 C
-C   compute and set displacement rates derived from the pole of rotation
-C
-          IF(POLET(3).NE.0.0)THEN
-C
 C     get (lat,long) from projected coordinates (radians -> degrees)
 C     if in rotated coordinate system CENTLNG should be zero.
 C
-            BPLON=CENTLNG+RTOD*(XN/SIN(YN))
-            BPLAT=RTOD*YN - 90.0
-            CALL VELNE(POLET(2),POLET(1),BPLAT,BPLON,UYV,UXV)  ! (lat, long)
-            XLOAD(NODE)=BIG*UXV*POLET(3)
-            XLOAD(NODE+NUP)=BIG*UYV*POLET(3)
-            NC=NC+1
-          ENDIF    ! non-zero rotation rate
+          BPLON=CENTLNG+RTOD*(XN/SIN(YN))
+          BPLAT=RTOD*YN - 90.0
+          CALL VELNE(POLET(2),POLET(1),BPLAT,BPLON,UYV,UXV)  ! (lat, long)
+          XLOAD(NODE)=BIG*UXV*POLET(3)
+          XLOAD(NODE+NUP)=BIG*UYV*POLET(3)
+C         IF(IP1.NE.IP2)WRITE(*,*)IP1,IP2,JX,NODE,BPLON,BPLAT,
+C    :                            UXV*POLET(3),UYV*POLET(3)
+          NC=NC+1
         ENDIF      ! IP1 != 0, pole applied
   500 CONTINUE
       IF((NC.GT.0).AND.(IFRST.EQ.0))THEN
@@ -1501,11 +1419,9 @@ C         YPT0D=YPT0
         ENDIF
         IF(IDEFTYP.GE.110)
      :    CALL PROJECTXY(XPT0,YPT0,CENTL,YMID,0,1,IERR)
-        WRITE(LSC,10134)XPT0,YPT0,XPT0D,YPT0D
-        WRITE(LUW,10134)XPT0,YPT0,XPT0D,YPT0D
-10134   FORMAT('Reference point CREF: ',
-     :         '(',F8.3,',',F8.3,'), in degrees: (',
-     :         F8.3,',',F8.3,')')
+        WRITE(LSC,10134)XPT0,YPT0
+        WRITE(LUW,10134)XPT0,YPT0
+10134   FORMAT('Reference point CREF: ','(',F8.3,',',F8.3,')')
         RETURN
       ELSE IF(INSTR(J1:J1+3).EQ.'POLE')THEN
         IPR=3
@@ -2152,53 +2068,18 @@ C
 C
 C****************************************************************************************
 C
-      SUBROUTINE PTAPER(ITAP,S1,S2,SS,CSRAT,POLE1,POLE2,POLE)
+      SUBROUTINE QTAPER(POLE1,POLE2,POLE,R1,R2)
 C
 C     applies a taper to rotation pole vectors to return
 C     pole parameters based on a  Cartesian interpolation
 C     between pole vectors POLE1 and POLE2, each vector
 C     a triple (long, lat, rotation rate)
-C     Note: returns POLE1 and CSRAT=1 when SS=S1
-C     Note: returns POLE2 and CSRAT=0 when SS=S2
-C
-C      ITAP < 0 use CSRAT from input line
-C      ITAP = 0 is constant (no taper)
-C      ITAP = 1 is linear ramp
-C      ITAP = 2 is sin**2 taper (zero gradient at both ends)
-C      ITAP = 3 is cos taper (zero gradient at S1)
-C      ITAP = 4 is sin taper (zero gradient at S2)
-C      ITAP = 5 is parabolic taper, zero gradient at S2)
-C       other values of ITAP may be included later
+C     Note: returns POLE1 when R1=1
+C     Note: returns POLE2 when R2=1
 C
       DIMENSION POLE1(3),POLE2(3),POLE(3)
       SAVE PION2,DTOR
       DATA PION2,DTOR/1.570796327,0.0174532925/
-C
-C    defaults allow for zero pole etc
-C
-      DO K=1,3
-        POLE(K)=POLE1(K)
-      ENDDO
-C
-C    calculate the taper factor and set CSRAT
-C
-      IF(ITAP.GE.0)THEN
-        CSRAT=0.0
-        IF(S2.EQ.S1)GOTO 10
-        RAT=(SS-S1)/(S2-S1)
-        IF(ITAP.EQ.1)THEN
-          CSRAT=RAT
-        ELSE IF(ITAP.EQ.2)THEN
-          CSRAT=SIN(RAT*PION2)
-          CSRAT=CSRAT*CSRAT
-        ELSE IF(ITAP.EQ.3)THEN
-          CSRAT=1.0-COS(RAT*PION2)
-        ELSE IF(ITAP.EQ.4)THEN
-          CSRAT=SIN(RAT*PION2)
-        ELSE IF(ITAP.EQ.5)THEN
-          CSRAT=(2.0-RAT)*RAT
-        END IF
-      ENDIF
 C
 C    convert POLE1 and POLE2 to Cartesian vectors
 C
@@ -2217,10 +2098,9 @@ C
 C
 C    calculate the interpolated pole vector
 C
-      XX=X1+(X2-X1)*CSRAT
-      YY=Y1+(Y2-Y1)*CSRAT
-      ZZ=Z1+(Z2-Z1)*CSRAT
-   10 CSRAT=1.0-CSRAT
+      XX=R1*X1+R2*X2
+      YY=R1*Y1+R2*Y2
+      ZZ=R1*Z1+R2*Z2
 C
 C   get magnitude and pole coordinates of interpolated pole
 C
@@ -2330,7 +2210,7 @@ C
       J=1
       DO 25 I=1,NBP
         IF (IBCTYP(I).EQ.15) THEN
-          N=NOR(IBC(I))
+          N=IBC(I)
           IFLTTIPS(J)=N
           DO 20 K=1,NSEG
             IF ((ISEG(1,K).EQ.N.OR.ISEG(2,K).EQ.N).AND.
@@ -2358,11 +2238,11 @@ C
 
       MAX=MAXTIPS
       DO 25 I=1,NBP
-          N=NOR(IBC(I))
+          N=IBC(I)
           DO 20 K=1,MAX
             IF (IFLTTIPS(K).EQ.N) THEN
-              IBCTYP(I)=11
-              IBCTYP(I+NBP)=11
+C             IBCTYP(I)=11
+C             IBCTYP(I+NBP)=11
               GO TO 25
             END IF
   20      CONTINUE
@@ -2412,3 +2292,4 @@ C Output from Public domain Ratfor, version 1.0
      *tlat)*z
       RETURN
       END
+

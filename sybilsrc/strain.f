@@ -301,7 +301,6 @@ C     DOUBLE PRECISION TRI,X1,X2,X3,Y1,Y2,Y3
 C     DOUBLE PRECISION A0(3),BY(3),CX(3),COOL(3)
 C
       NUP2=NUP*2
-      EPS=1.0E-4
       CALL LNCORD(PNI,PLI)
       GPEZERO=-0.5*ARGAN/(HLENSC*HLENSC)
       UUI=0.0
@@ -321,6 +320,7 @@ C
 C     EPSX=DXP*0.1
 C     EPSY=DYP*0.1
       EPS=0.01*SQRT(DXP*DXP+DYP*DYP)
+C     EPS=0.1e-5
       SXP=SE
 C
 C    BIGV is defined in STCOMP consistent with usage in VISK (cginit.f)
@@ -479,6 +479,7 @@ C
      :                DUDX,DUDY,DVDX,DVDY,PRES,SIZZ,
      :                NCOMP,UUI,VVI,XP,YP,IVV,SXP,VF,BIGV)
           RLINE(J)=SVAL
+C         WRITE(*,*)J,EDYY,PRES,SVAL
    70   CONTINUE
    80 CONTINUE
       RETURN
