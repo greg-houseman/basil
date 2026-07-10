@@ -1152,7 +1152,7 @@ C
 C
 C      Deform the finite element mesh using the current velocity
 C
-        CALL DFSTEP(DTP,EXTS,EYTS,EX,EY,UVPTS,LEM,
+        CALL DFSTEP(DTP,EXTS,EYTS,EX,EY,UVPTS,NOR,LEM,
      :              INTV(INUP),INTV(INE),INTV(INN),INTV(INCOMP),
      :              IOFF,RLV(ITBXOFF),RLV(ITBYOFF),
      :              RLV(IVELXO),RLV(IVELYO),

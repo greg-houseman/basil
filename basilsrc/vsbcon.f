@@ -60,7 +60,7 @@ C
           K1=LEM(J1,N)
           K2=LEM(J2,N)
           K4=LEM(J4,N)
-          LK4=K4
+          LK4=NOR(K4)
           XM=EX(LK4)
           YM=EY(LK4)
           XT1=XM-XZERO
@@ -172,7 +172,7 @@ C
 C
       DO 300 I=1,NE
         DO K=4,6
-          ITEMP=LEM(K,I)-NN
+          ITEMP=NOR(LEM(K,I))-NN
           IF((ITEMP.LE.0).OR.(ITEMP.GT.NMP) ) THEN
             WRITE(6,10500)K,I,ITEMP
 10500       FORMAT('VSBTAB2 problem, stopping; K, I, ITEMP =',3I7)
@@ -264,11 +264,11 @@ C
       XMAX=0
       XMIN=1
       DO 600 I=1,NBP
-        IF(EX(IBC(I)).GT.XMAX) THEN
-          XMAX=EX(IBC(I))
+        IF(EX(NOR(IBC(I))).GT.XMAX) THEN
+          XMAX=EX(NOR(IBC(I)))
         END IF
-        IF(EX(IBC(I)).LT.XMIN) THEN
-          XMIN=EX(IBC(I))
+        IF(EX(NOR(IBC(I))).LT.XMIN) THEN
+          XMIN=EX(NOR(IBC(I)))
         END IF
   600 CONTINUE
 C
@@ -279,24 +279,24 @@ C
       YMINX=1
       YMAXX=0
       DO 601 I=1,NBP
-        IF((EX(IBC(I))-XMIN.LT.EPS).AND.
-     :    (EY(IBC(I))).LT.YMINM) THEN
-          YMINM=EY(IBC(I))
+        IF((EX(NOR(IBC(I)))-XMIN.LT.EPS).AND.
+     :    (EY(NOR(IBC(I)))).LT.YMINM) THEN
+          YMINM=EY(NOR(IBC(I)))
           KORNER(1)=IBC(I)
         END IF
-        IF((EX(IBC(I))-XMIN.LT.EPS).AND.
-     :    (EY(IBC(I))).GT.YMAXM) THEN
-          YMAXM=EY(IBC(I))
+        IF((EX(NOR(IBC(I)))-XMIN.LT.EPS).AND.
+     :    (EY(NOR(IBC(I)))).GT.YMAXM) THEN
+          YMAXM=EY(NOR(IBC(I)))
           KORNER(4)=IBC(I)
         END IF
-        IF((XMAX-EX(IBC(I)).LT.EPS).AND.
-     :    (EY(IBC(I))).GT.YMAXX) THEN
-          YMAXX=EY(IBC(I))
+        IF((XMAX-EX(NOR(IBC(I))).LT.EPS).AND.
+     :    (EY(NOR(IBC(I)))).GT.YMAXX) THEN
+          YMAXX=EY(NOR(IBC(I)))
           KORNER(3)=IBC(I)
         END IF
-        IF((XMAX-EX(IBC(I)).LT.EPS).AND.
-     :    (EY(IBC(I))).LT.YMINX) THEN
-          YMINX=EY(IBC(I))
+        IF((XMAX-EX(NOR(IBC(I))).LT.EPS).AND.
+     :    (EY(NOR(IBC(I)))).LT.YMINX) THEN
+          YMINX=EY(NOR(IBC(I)))
           KORNER(2)=IBC(I)
         END IF
   601 CONTINUE
@@ -396,8 +396,8 @@ C   'ON' statements are processed here
 C
       IF(INSTR(J1:J1+1).EQ.'ON')THEN
         CALL VSBCON(INSTR,IPR,XLEN,YLEN,BIG,IFLTTIPS,EX,EY,QBND,
-     :              TANDF,ARGAN,HLENSC,CENTLNG,CT0,IDEFTYP,LEM,IBC,
-     :              IBNGH,IBCTYP,ISEG,NSEG,NUP,NE,NN,NBP,LBC,
+     :              TANDF,ARGAN,HLENSC,CENTLNG,CT0,IDEFTYP,NOR,LEM,
+     :              IBC,IBNGH,IBCTYP,ISEG,NSEG,NUP,NE,NN,NBP,LBC,
      :              LUW,LSC,IDBUG,IERR)
         IF (IERR.NE.0)GO TO 50
 C
@@ -418,7 +418,7 @@ C   'BETWEEN, POLE, CREF' statements are processed by this routine
 C
       ELSE
         CALL VSBCBE(INSTR,IPR,BIG,EX,EY,QBND,TANDF,ARGAN,HLENSC,
-     :              CENTLNG,CT0,ROTIX,DPHI,LEM,IBC,IBNGH,IBCTYP,
+     :              CENTLNG,CT0,ROTIX,DPHI,NOR,LEM,IBC,IBNGH,IBCTYP,
      :              NCOMP,NUP,NE,NN,NBP,XPT0,YPT0,POLEP,
      :              IPOLE,IDEFTYP,LBC,LUW,LSC,IDBUG,IERR)
         IF (IERR.NE.0) GO TO 50
@@ -582,7 +582,7 @@ C
 C****************************************************************************************
 C
       SUBROUTINE VSBCON(INSTR,IPR,XLEN,YLEN,BIG,IFLTTIPS,EX,EY,QBND,
-     :                  TANDF,ARGAN,HLENSC,CENTLNG,CT0,IDEFTYP,LEM,
+     :                  TANDF,ARGAN,HLENSC,CENTLNG,CT0,IDEFTYP,NOR,LEM,
      :                  IBC,IBNGH,IBCTYP,ISEG,NSEG,NUP,NE,NN,NBP,LBC,
      :                  LUW,LSC,IDBUG,IERR)
 C
@@ -629,6 +629,7 @@ C
       DIMENSION EX(NUP)
       DIMENSION EY(NUP)
       DIMENSION LEM(6,NE)
+      DIMENSION NOR(NUP)
       DIMENSION QBND(NBP*2)
       DIMENSION IBC(NBP),IBNGH(NBP*2),IBCTYP(NBP*2)
       CHARACTER IYX*1
@@ -685,12 +686,15 @@ C
         NODE=IBC(JX)
         NODEA=IBNGH(JX)
         NODEB=IBNGH(JY)
-        XN=EX(NODE)
-        YN=EY(NODE)
-        XNA=EX(NODEA)
-        YNA=EY(NODEA)
-        XNB=EX(NODEB)
-        YNB=EY(NODEB)
+        NNODE=NOR(NODE)
+        NNODEA=NOR(NODEA)
+        NNODEB=NOR(NODEB)
+        XN=EX(NNODE)
+        YN=EY(NNODE)
+        XNA=EX(NNODEA)
+        YNA=EY(NNODEA)
+        XNB=EX(NNODEB)
+        YNB=EY(NNODEB)
         NCORNA=0         ! remains zero if NODEA not on set segment
         NCORNB=0         ! remains zero if NODEB not on set segment
         NODSET=0         ! to be changed if BC to be set
@@ -866,7 +870,7 @@ C
             DLENA=SQRT(XDIFA*XDIFA+YDIFA*YDIFA)
             DLENB=SQRT(XDIFB*XDIFB+YDIFB*YDIFB)
 C
-            IF(NODE.LE.NN)THEN                   ! if a vertex node
+            IF(NNODE.LE.NN)THEN                  ! if a vertex node
               PC=PVERT
               DLEN=DLENA+DLENB
               XBIF=XDIFA+XDIFB
@@ -1001,7 +1005,7 @@ C
 C****************************************************************************************
 C
       SUBROUTINE VSBCBE(INSTR,IPR,BIG,EX,EY,QBND,TANDF,ARGAN,HLENSC,
-     :                  CENTLNG,CT0,ROTIX,DPHI,LEM,IBC,IBNGH,
+     :                  CENTLNG,CT0,ROTIX,DPHI,NOR,LEM,IBC,IBNGH,
      :                  IBCTYP,NCOMP,NUP,NE,NN,NBP,XPT0,YPT0,
      :                  POLEP,IPOLE,IDEFTYP,
      :                  LBC,LUW,LSC,IDBUG,IERR)
@@ -1044,6 +1048,7 @@ C
       DIMENSION EX(NUP)
       DIMENSION EY(NUP)
       DIMENSION LEM(6,NE)
+      DIMENSION NOR(NUP)
       DIMENSION QBND(NBP*2)
       DIMENSION IBC(NBP),IBNGH(NBP*2),IBCTYP(NBP*2)
       DIMENSION POLEP(3,MAXPOLE),POLET(3),TANDF(2)
@@ -1088,8 +1093,7 @@ C     CALL MITPRT(IBNGH,NBP,2,2*NBP,6)
         IF((IBCTYP(JX).LT.10).OR.(IBCTYP(JX).GT.500))THEN     !don't hit fault nodes
           JY=JX+NBP
           NODE=IBC(JX)
-          NNODE=NODE
-          NNODE=IBC(JX)
+          NNODE=NOR(NODE)
           XN=EX(NNODE)
           YN=EY(NNODE)
           AZ=ATAN2((YN-YPT0),(XN-XPT0))   ! relative to CREF
@@ -1108,8 +1112,8 @@ C
             IF(IUT(1:1).EQ.'T'.OR.IUT(1:1).EQ.'F')THEN
               NODEA=IBNGH(JX)
               NODEB=IBNGH(JY)
-              NNODEA=NODEA
-              NNODEB=NODEB
+              NNODEA=NOR(NODEA)
+              NNODEB=NOR(NODEB)
               XNA=EX(NNODEA)
               YNA=EY(NNODEA)
               XNB=EX(NNODEB)
