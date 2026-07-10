@@ -207,7 +207,7 @@ C     WRITE(*,*)'T,DT,IDT0,DEFLIM,DVMX=',T,DT,IDT0,DEFLIM,DVMX
 C
       RETURN
       END
-      SUBROUTINE DFSTEP(DT,EXTS,EYTS,EX,EY,UVP,LEM,NUP,NE,NN,
+      SUBROUTINE DFSTEP(DT,EXTS,EYTS,EX,EY,UVP,NOR,LEM,NUP,NE,NN,
      :                  NCOMP,IOFF,TBXOFF,TBYOFF,VELXO,VELYO,
      :                  IFLT,IFBC1,IFEQV,NFP,NFPF3,
      :                  SEGMIN,LSEGMIN,SHAPEMIN,LSHAPEMIN,
@@ -222,6 +222,7 @@ C    the NOR(NUP) array is removed as no longer necessary.
 C
       INCLUDE 'limits.parameters'
       DIMENSION EX(NUP),EY(NUP),UVP(NUP,2),LEM(6,NE)
+      DIMENSION NOR(NUP)
       DIMENSION IFBC1(NFP),IFEQV(NFP)
       DIMENSION EXTS(NUP),EYTS(NUP)
       DIMENSION SD2(3)
@@ -235,14 +236,17 @@ C
 C
 C    the basic vertex update process follows
 C
-      DO NI=1,NN
-        EX(NI)=EXTS(NI) + DT*UVP(NI,1)
-        EY(NI)=EYTS(NI) + DT*UVP(NI,2)
+      DO N=1,NUP
+        NI=NOR(N)
+        IF((NI.GE.1).AND.(NI.LE.NN))THEN
+          EX(NI)=EXTS(NI) + DT*UVP(N,1)
+          EY(NI)=EYTS(NI) + DT*UVP(N,2)
 C
 C     correction for thin spherical sheet
 C
-        IF(NCOMP.EQ.-1)THEN
-          EX(NI)=EX(NI) + DT*EXTS(NI)*UVP(NI,2)/TAN(EYTS(NI))
+          IF(NCOMP.EQ.-1)THEN
+            EX(NI)=EX(NI) + DT*EXTS(NI)*UVP(N,2)/TAN(EYTS(NI))
+          ENDIF
         ENDIF
       ENDDO
 C
@@ -278,12 +282,12 @@ C   than arrange for it to be only done once on a given midpoint
 C   In general a midpoint is shared by two elements.
 C
       DO JEL=1,NE
-        NJ1=LEM(1,JEL)
-        NJ2=LEM(2,JEL)
-        NJ3=LEM(3,JEL)
-        NJ4=LEM(4,JEL)
-        NJ5=LEM(5,JEL)
-        NJ6=LEM(6,JEL)
+        NJ1=NOR(LEM(1,JEL))
+        NJ2=NOR(LEM(2,JEL))
+        NJ3=NOR(LEM(3,JEL))
+        NJ4=NOR(LEM(4,JEL))
+        NJ5=NOR(LEM(5,JEL))
+        NJ6=NOR(LEM(6,JEL))
         EX(NJ4)=(EX(NJ3)+EX(NJ1))*0.5
         EX(NJ5)=(EX(NJ1)+EX(NJ2))*0.5
         EX(NJ6)=(EX(NJ2)+EX(NJ3))*0.5
@@ -305,8 +309,8 @@ C
         DO 10 K1=1,3
           K2=MOD(K1,3)+1
           K3=MOD(K1+1,3)+1
-          LK2=LEM(K2,N)
-          LK3=LEM(K3,N)
+          LK2=NOR(LEM(K2,N))
+          LK3=NOR(LEM(K3,N))
           BY=EY(LK2)-EY(LK3)
           CX=EX(LK3)-EX(LK2)
           SD2(K1)=BY*BY + CX*CX
@@ -337,7 +341,8 @@ C
    25 CONTINUE
       SEGMIN=SQRT(SEGSQMIN)
       NODE=LEM(LANGKIN,LANGMIN)
-      WRITE(*,10110)ANGMIN/DTOR,LANGMIN,LANGKIN,NODE,EX(NODE),EY(NODE)
+      WRITE(*,10110)ANGMIN/DTOR,LANGMIN,LANGKIN,NODE,
+     :              EX(NOR(NODE)),EY(NOR(NODE))
 10110 FORMAT('smallest angle',F9.4,' node: ',3I5,' (x,y) =',2F9.4)
       RETURN
       END
